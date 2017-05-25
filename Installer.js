@@ -1,1 +1,2311 @@
-"use strict";var CIB=CIB||{};CIB.installer=function(){var f,t,i,r={},u={},n;return $(document).ready(function(){if(f=CIB.utilities.getContext(),t=f.context,i=f.hostContext,!$.isInternetExplorer()&&!$.hasAppWeb())if($("#install-status").length>0)$("#install-status").append($('<div class="alert alert-danger" role="alert" style="width:580px;"><strong>Unsupported browser<\/strong><span>The provisioning wizard will only work with internet explorer for provider hosted apps.<\/span><\/div>'));else throw new Error("Unsupported browser: The provisioning wizard will only work with internet explorer for provider hosted apps.");}),n=function(){return{executeQuery:function(i,r,u){t.executeQueryAsync(function(){var t=[],f=!0;$.each(i,function(){var i=this,r;i.get_hasException()?(r=n.handleError(this,i),f&=r.handled,t.push(r.message)):(n.message(i.successMessage,"success"),t.push(i.successMessage))});f?u?r.resolve(t,u):r.resolve(t):r.reject(t)},function(t,i){var u=n.handleError(t,i);u.handled?r.resolve(u.message):r.reject(u.message)})},handleError:function(t,i){for(var r=i.get_message?i.get_message():i.get_errorMessage(),f=[" is already activated at scope ",'A duplicate field name "','A duplicate content type "',"A file or folder with the name ","The specified name is already in use.","A list, survey, discussion board, or document library with the specified title already exists in this Web site."],e="error",u=0;u<f.length;u++)if(r.slice(0,f[u].length)==f[u]||r.indexOf(f[u])>-1){e="info";r+=" (expected if provisioned already)";break}return n.message(r,e),{handled:e=="info",message:r}},message:function(n,t){var r,i;t||(t="message");console&&console.log&&console.log(n+" ["+t+"]");t=="error"&&CIB.logging.logError("Provisioning",n,window.location.href);r=t=="success"?"green":t=="error"?"red":t=="info"?"orange":"gray";$("#install-status").append('<span style="color:'+r+'">'+n+"<\/span>");i=document.getElementById("install-status");i&&(i.scrollTop=i.scrollHeight)},updateListIds:function(){var u=new jQuery.Deferred,f=i.get_web().get_lists();return t.load(f,"Include(Title, Id)"),t.executeQueryAsync(function(){for(var t=f.getEnumerator(),n;t.moveNext();)n=t.get_current(),r[n.get_title()]=n.get_id();u.resolve()},function(t,i){var r=n.handleError(t,i);u.reject(r.message)}),u.promise()},getViewsForList:function(r,f){var e=new $.Deferred,s=i.get_web(),h=s.get_lists().getByTitle(f),o=h.get_views();t.load(o,"Include(Id, Title)");t.executeQueryAsync(function(){for(var n=o.getEnumerator();n.moveNext();){var t=n.get_current(),i=t.get_title(),r=t.get_id().toString().toLowerCase();$.isEmptyObject(u[f])&&(u[f]=[]);u[f][i]=r}e.resolve()},function(t,i){n.handleError(t,i);e.fail()});r.push(e)},updateViewIds:function(){var t=[];for(var i in r)n.getViewsForList(t,i);return $.when.apply($,t).promise()}}}(),window.onerror=function(t,i,r){CIB.logging.logError("Unhandled JavaScript Error",t,"Line: "+r+"\r\n"+i);n.message(t,"error")},{message:function(t,i){n.message(t,i)},getListIds:function(){var t=new jQuery.Deferred;return n.updateListIds().done(function(){t.resolve(r)}).fail(function(n){t.reject(n)}),t.promise()},activateFeatures:function(r){var u=[],r=CIB.utilities.ensureArray(r),f=new jQuery.Deferred;return $.each(r,function(){var r=this,f;if(!r.id||!r.name||!r.scope)throw new Error("Feature object must had id, name and scope attributes");if(r.scope!="site"&&r.scope!="web")throw new Error("Feature scope must be either site or web");f=$.handleExceptionsScope(t,function(){n.message("Activateg feature '"+r.name+"'");var t=r.scope=="site"?i.get_site().get_features():i.get_web().get_features(),u=t.add(new SP.Guid(r.id),!1,SP.FeatureDefinitionScope.farm)});f.successMessage="Feature '"+r.name+"' activated.";u.push(f)}),n.executeQuery(u,f),f.promise()},createLists:function(r){var u=[],r=CIB.utilities.ensureArray(r),f=new jQuery.Deferred;return $.each(r,function(){var r=this,f;if(!r.name||!r.type)throw new Error("List object must have name and type attributes");f=$.handleExceptionsScope(t,function(){var o,u,t,e,f;n.message("Creating list '"+r.name+"'");o=i.get_web().get_lists();t=new SP.ListCreationInformation;t.set_title(r.name);t.set_templateType(r.type);r.feature&&t.set_templateFeatureId(r.feature);u=!1;t=o.add(t);(r.type=="10002"||r.type=="10000"||r.type=="10001")&&(e=t.get_rootFolder(),f=e.get_properties(),r.type=="10002"?f.set_item("InformationSecurityLevel",0):r.type=="10001"?f.set_item("InformationSecurityLevel",2):r.type=="10000"&&f.set_item("InformationSecurityLevel",1),e.update());r.hasOwnProperty("hidden")&&(t.set_hidden(r.hidden),u=!0);r.hasOwnProperty("onQuickLaunch")&&(t.set_onQuickLaunch(r.onQuickLaunch),u=!0);u&&t.update()});f.successMessage="List '"+r.name+"' created.";u.push(f)}),n.executeQuery(u,f),f.promise()},createFolders:function(r){var u=[],r=CIB.utilities.ensureArray(r),f=new jQuery.Deferred;return $.each(r,function(){var r=this,f;if(!r.name||!r.list||!r.path)throw new Error("Folder object must have name, list and path attributes");f=$.handleExceptionsScope(t,function(){var f,t,u;n.message("Creating folder "+r.name+" in list "+r.list);f=i.get_web().get_lists().getByTitle(r.list);t=new SP.ListItemCreationInformation;t.set_underlyingObjectType(SP.FileSystemObjectType.folder);t.set_leafName(r.name);t.set_folderUrl($.getHostWebUrl()+"/"+r.path);u=f.addItem(t);u.set_item("Title",r.name);u.update()});f.successMessage="Folder "+r.name+" created in list "+r.list;u.push(f)}),n.executeQuery(u,f),f.promise()},updateFileTokens:function(n){var t=function(n,t){if(n[t])return n[t]},i=function(n,t){if(u[n])return u[n][t]},f=function(n){var u=new RegExp("{\\$([^:]*):([^}]*)}","gi");return n=n.replace(u,function(n,i,u){return i==="List"?t(r,u):n}),u=new RegExp("{\\$([^:]*):([^}]*):([^}]*)}","gi"),n.replace(u,function(n,t,r,u){return t==="ListView"?i(r,u):n})};return f(n)},copyFiles:function(r){var r=CIB.utilities.ensureArray(r),f=0,u=new jQuery.Deferred;return $.each(r,function(){var o=[],e=this;if(!e.name||!e.url||!e.path)throw new Error("File object must have name, url and path attributes");n.message("Copying file "+e.name);var c=function(n){var t=n.binary?!0:!1,i="_api/web/GetFileByServerRelativeUrl('"+($.getServerRealtiveApptWebUrl()+"/"+n.path).replace("//","/")+"')/$value",r=new SP.RequestExecutor($.getAppWebUrl()),u={url:i,method:"GET",binaryStringResponseBody:t,success:function(t){h(n,t.body)},error:function(){s(n)}};r.executeAsync(u)},s=function(n){$.support.cors=!0;var t=$.getAppWebUrl()+"/_api/SP.AppContextSite(@target)/web/GetFileByServerRelativeUrl('"+($.getServerRealtiveApptWebUrl()+"/"+n.path).replace("//","/")+"')/$value?@target='"+$.getHostWebUrl()+"'";$.ajax({url:t,cache:!1}).done(function(t){h(n,t)}).fail(function(n){u.reject(n.statusText)})},h=function(e,s){e.name!="Installer.js"&&(s=s.replace(/{#HostWebURL#}/g,$.getHostWebUrl()),s=s.replace(/{#ServerRelativeHostWebURL#}/g,$.getServerRealtiveHostWebUrl()),s=CIB.installer.updateFileTokens(s));var h=($.getServerRealtiveHostWebUrl()+"/"+e.url).replace("//","/"),c=$.handleExceptionsScope(t,function(){var n,r,f,u;for(e.publish&&$.handleExceptionsScope(t,function(){var n=i.get_web().getFileByServerRelativeUrl(h+"/"+e.name);n.checkOut()}),n=new SP.FileCreationInformation,n.set_content(new SP.Base64EncodedByteArray),r=0;r<s.length;r++)n.get_content().append(s.charCodeAt(r));n.set_overwrite(!0);n.set_url(e.name);f=i.get_web().getFolderByServerRelativeUrl(h).get_files();u=f.add(n);e.publish&&(u.checkIn("Checked in by provisioning framework.",SP.CheckinType.majorCheckIn),u.publish("Published by provisioning framework."))});c.successMessage="File "+e.name+" created at "+e.url;o.push(c);++f==r.length&&n.executeQuery(o,u)};$.isAppWeb()?c(e):s(e)}),u.promise()},updateListIds:function(){return n.updateListIds()},updateViewIds:function(){return n.updateViewIds()},createSiteColumns:function(n){var t=i.get_web().get_fields();return CIB.installer.createColumns(n,t)},createListColumns:function(n,t){var r=i.get_web().get_lists().getByTitle(n),u=r.get_fields();return CIB.installer.createColumns(t,u)},createColumns:function(i,u){var o=[],i=CIB.utilities.ensureArray(i),f=new jQuery.Deferred,e;if(!u)throw new Error("Field collection not provided, use createSiteColumns or createListColumns instead.");return e=function(){$.each(i,function(){var i=this,e;if(!i.id||!i.name||!i.type||!i.displayName||!i.group)throw new Error("Column object must have id, name, type, group and displayName attributes");e=$.handleExceptionsScope(t,function(){var b,e,s,o,a,l,h,v,y;n.message("Creating column '"+i.displayName+"'");var p=i.hidden?"true":"false",w=i.required?"true":"false",k=i.multi?"true":"false",c="<Field ID='"+i.id+"' Type='"+i.type+"' DisplayName='"+i.name+"' Name='"+i.name+"' Group='"+i.group+"' Required='"+w+"' />";if(i.type.toLowerCase()=="calculated"){if(!i.formula||!i.resultType)throw new Error("Calculated columns must have a formula and resultType set");b="<Formula>"+i.formula+"<\/Formula>";c=c.replace(" />",' ResultType="'+i.resultType+'">'+b+"<\/Field>")}if(k=="true"&&(c=c.replace(" />",' Mult="TRUE" />')),e=u.addFieldAsXml(c,!1,SP.AddFieldOptions.AddToNoContentType),p!=null&&e.set_hidden(p),e.set_title(i.displayName),e.set_required(w),i.defaultValue&&e.set_defaultValue(i.defaultValue),t.load(e),i.type.toLowerCase()=="lookup"){if(!r[i.lookupList]){s="The id for the list "+i.lookupList+" has not been loaded. updateListIds must be called before creating lookup fields";f.reject(s);throw new Error(s);}o=t.castTo(e,SP.FieldLookup);o.set_lookupList(r[i.lookupList]);o.set_lookupField(i.lookupField);o.update();i.additionalFields&&$.each(i.additionalFields,function(){var n=this;u.addDependentLookup(n.displayName,e,n.target)})}else if(i.type.toLowerCase()=="lookupmulti"){if(!r[i.lookupList]){s="The id for the list "+i.lookupList+" has not been loaded. updateListIds must be called before creating lookup fields";f.reject(s);throw new Error(s);}o=t.castTo(e,SP.FieldLookup);o.set_lookupList(r[i.lookupList]);o.set_lookupField(i.lookupField);o.set_allowMultipleValues(!0);o.update();i.additionalFields&&$.each(i.additionalFields,function(){var n=this;u.addDependentLookup(n.displayName,e,n.target)})}else i.type.toLowerCase()=="currency"&&i.locale?(a=t.castTo(e,SP.FieldCurrency),a.set_currencyLocaleId(i.locale),a.update()):i.type.toLowerCase()=="number"?(l=t.castTo(e,SP.FieldNumber),i.minimumValue&&l.set_minimumValue(i.minimumValue),i.maximumValue&&l.set_maximumValue(i.maximumValue),l.update()):i.type.toLowerCase()=="choice"&&i.choices?(h=t.castTo(e,SP.FieldChoice),h.set_choices($.makeArray(i.choices)),h.update()):i.type.toLowerCase()=="multichoice"&&i.choices?(h=t.castTo(e,SP.FieldMultiChoice),h.set_choices($.makeArray(i.choices)),h.update()):i.type.toLowerCase()=="datetime"&&i.dateOnly?(v=t.castTo(e,SP.FieldDateTime),v.set_displayFormat(SP.DateTimeFieldFormatType.dateOnly),v.update()):i.type.toLowerCase()=="taxonomyfieldtypemulti"?(y=t.castTo(e,SP.Taxonomy.TaxonomyField),y.set_allowMultipleValues(!0),y.update()):e.update()});e.successMessage="Column "+i.displayName+" created";o.push(e)});n.executeQuery(o,f)},i.filter(function(n){return n.type=="lookup"}).length>0?n.updateListIds().done(e):e(),f.promise()},createContentTypes:function(r){var u=[],r=CIB.utilities.ensureArray(r),f=new jQuery.Deferred;return $.each(r,function(){var r=this,f;if(!r.name||!r.id||!r.group)throw new Error("Content Type object must have id, name and group attributes");f=$.handleExceptionsScope(t,function(){n.message("Creating content type '"+r.name+"'");var u=i.get_web().get_contentTypes(),t=new SP.ContentTypeCreationInformation;t.set_id(r.id);t.set_name(r.name);t.set_group(r.group);u.add(t)});f.successMessage="Content type "+r.name+" created";u.push(f)}),n.executeQuery(u,f),f.promise()},addColumnsToContentType:function(r,u){var u=CIB.utilities.ensureArray(u),f=new jQuery.Deferred,s=i.get_web().get_fields(),h=i.get_web().get_contentTypes(),o=h.getById(r),e=o.get_fieldLinks();return t.load(e),t.executeQueryAsync(function(){for(var r=[],h=[],l=[],c=e.getEnumerator(),i;c.moveNext();)i=c.get_current(),l.push(i.get_id().toString().toLowerCase()),h.push(i.get_name());$.each(u,function(){var i=this.toString(),u;if($.inArray(i,h)>=0){n.message("Column already added to content type '"+i+"'. (expected if provisioned already)","info");return}u=$.handleExceptionsScope(t,function(){var t=s.getByInternalNameOrTitle(i),n=new SP.FieldLinkCreationInformation,r=n.set_field(t);e.add(n)});u.successMessage="Added column "+i+" to content type";r.push(u)});o.update(!0);n.executeQuery(r,f)},function(t,i){var r=n.handleError(t,i);r.handled?f.resolve(r.message):f.reject(r.message)}),f.promise()},hideColumnsFromEditForm:function(r,u){var e=[],u=CIB.utilities.ensureArray(u),f=new jQuery.Deferred;n.message("Hiding columns in list '"+r+"'");var s=i.get_web(),h=s.get_lists().getByTitle(r),o=h.get_fields();return t.load(o),t.executeQueryAsync(function(){$.each(u,function(){var n=this,i=$.handleExceptionsScope(t,function(){var t=o.getByInternalNameOrTitle(n);t.setShowInEditForm(!1);t.update()});i.successMessage='Column "'+n+'" hidden from edit view';e.push(i)})},function(t,i){var r=n.handleError(t,i);r.handled?f.resolve(r.message):f.reject(r.message)}),n.executeQuery(e,f),f.promise()},createView:function(r,u,f,e,o,s,h){var a=[],c=new jQuery.Deferred;n.message("Creating view "+u+" for list '"+r+"'");var v=i.get_web(),y=v.get_lists().getByTitle(r),l=y.get_views(),f=$.ensureArray(f);return t.load(l,"Include(Title, ViewFields)"),t.executeQueryAsync(function(){for(var i,p=l.getEnumerator(),v,y;p.moveNext();)if(v=p.get_current(),u==v.get_title()){n.message("View '"+u+"' already exists for list "+r+".","info");i=v;break}y=$.handleExceptionsScope(t,function(){var n;if(i){for(var t=[],r=i.get_viewFields(),c=r.getEnumerator();c.moveNext();)t.push(c.get_current());f.forEach(function(n){t.indexOf(n)<0&&r.add(n)});e&&i.set_viewQuery(e);s&&i.set_rowLimit(s);h!=undefined&&h!=null&&i.set_paged(h);i.update()}else n=new SP.ViewCreationInformation,n.set_title(u),n.set_viewFields(f),n.set_query(e),s&&n.set_rowLimit(parseInt(s)),o&&n.set_viewTypeKind(o),h!=undefined&&h!=null&&n.set_paged(h),l.add(n)});y.successMessage=u+(i?" updated":" created ")+"for list '"+r+"'";a.push(y);n.executeQuery(a,c)},function(t,i){var r=n.handleError(t,i);r.handled?c.resolve(r.message):c.reject(r.message)}),c.promise()},addContentTypesToList:function(r,u){var o=[],u=CIB.utilities.ensureArray(u),s=new jQuery.Deferred,f,e,h,c;return n.message("Adding content types to list '"+r+"'"),f=i.get_web(),e=f.get_lists().getByTitle(r),e.set_contentTypesEnabled(!0),h=f.get_contentTypes(),c=e.get_contentTypes(),$.each(u,function(){var n=this,i=$.handleExceptionsScope(t,function(){var t=h.getById(n);c.addExistingContentType(t)});i.successMessage="Content type "+n+" added to list";o.push(i)}),n.executeQuery(o,s),s.promise()},removeContentTypesFromList:function(r,u){var s=[],u=CIB.utilities.ensureArray(u),f=new jQuery.Deferred,h,e,o;return n.message("Removing content types from list '"+r+"'"),h=i.get_web(),e=h.get_lists().getByTitle(r),e.set_contentTypesEnabled(!0),o=e.get_contentTypes(),t.load(o,"Include(Id, Name)"),t.executeQueryAsync(function(){$.each(u,function(){for(var i=this,e=!1,h=o.getEnumerator(),u,f;h.moveNext();)if(u=h.get_current(),u.get_name().toLowerCase()==i.toLowerCase()){f=$.handleExceptionsScope(t,function(){u.deleteObject()});f.successMessage="Content type "+i+" removed from list";s.push(f);e=!0;break}e||n.message("Could not find '"+i+"' in list "+r+".","info")});n.executeQuery(s,f)},function(t,i){var r=n.handleError(t,i);r.handled?f.resolve(r.message):f.reject(r.message)}),f.promise()},setDefaultContentType:function(r,u){var f=new jQuery.Deferred;n.message("Setting default content type on list '"+r+"' to "+u);var h=i.get_web(),o=h.get_lists().getByTitle(r),s=o.get_contentTypes(),e=o.get_rootFolder();return t.load(e,"ContentTypeOrder","UniqueContentTypeOrder"),t.load(s,"Include(Id, Name)"),t.executeQueryAsync(function(){var i=[],o=$.handleExceptionsScope(t,function(){for(var i=[],r=s.getEnumerator(),f=e.get_contentTypeOrder(),n,t;r.moveNext();)if(n=r.get_current(),n.get_name().toLowerCase()!="folder"){if(n.get_name().toLowerCase()==u.toLowerCase()){i.splice(0,0,n.get_id());continue}for(t=0;t<f.length;t++)if(f[t].toString()==n.get_id()){i.push(n.get_id());break}}e.set_uniqueContentTypeOrder(i);e.update()});o.successMessage="Default content type set on list '"+r+"' to "+u;i.push(o);n.executeQuery(i,f)},function(t,i){var r=n.handleError(t,i);r.handled?f.resolve(r.message):f.reject(r.message)}),f.promise()},addIndiciesToList:function(r,u){var f=[],u=CIB.utilities.ensureArray(u),e=new jQuery.Deferred;n.message("Setting indicies on list '"+r+"'");var s=i.get_web(),o=s.get_lists().getByTitle(r),h=o.get_fields();return $.each(u,function(){var n=this,i=$.handleExceptionsScope(t,function(){var t=h.getByInternalNameOrTitle(n);t.set_indexed(!0);t.update();o.update()});i.successMessage="Index created on column "+n+" in list '"+r+"'";f.push(i)}),n.executeQuery(f,e),e.promise()},enforceUniqueValues:function(r,u){var f=[],u=CIB.utilities.ensureArray(u),e=new jQuery.Deferred;n.message("Enforcing unique values on list '"+r+"'");var s=i.get_web(),o=s.get_lists().getByTitle(r),h=o.get_fields();return $.each(u,function(){var n=this,i=$.handleExceptionsScope(t,function(){var t=h.getByInternalNameOrTitle(n);t.set_indexed(!0);t.set_enforceUniqueValues(!0);t.update();o.update()});i.successMessage="Enforced unique values on column "+n+" in list '"+r+"'";f.push(i)}),n.executeQuery(f,e),e.promise()},addListViewWebPartToPage:function(r,u,f,e,o,s){var h=new jQuery.Deferred;return CIB.installer.addWebPartsToPage({url:r,title:e,assembly:"Microsoft.SharePoint, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c",type:"Microsoft.SharePoint.WebPartPages.XsltListViewWebPart",zone:o,index:s,properties:'<property name="ListUrl" type="string">'+u+"<\/property>"}).done(function(r,e){var a=e.get_id(),c=i.get_web().get_lists().getByTitle(u.replace("Lists/","")),o=c.get_views().getById(a),s=c.get_views().getByTitle(f),l=s.get_viewFields();t.load(o);t.load(s);t.load(l);t.executeQueryAsyncPromise().done(function(){var i,r;for(o.set_viewData(s.get_viewData()),o.set_viewJoins(s.get_viewJoins()),o.set_viewProjectedFields(s.get_viewProjectedFields),o.set_viewQuery(s.get_viewQuery()),o.get_viewFields().removeAll(),i=l.getEnumerator();i.moveNext();)r=i.get_current(),o.get_viewFields().add(r);o.update();t.executeQueryAsyncPromise().done(function(){n.message("Web part view updated to match "+f,"success");h.resolve()}).fail(function(t){n.message(t,"error");h.reject(t)})}).fail(function(t){n.message(t,"error");h.reject(t)})}),h.promise()},addWebPartsToPage:function(r){var f=[],r=CIB.utilities.ensureArray(r),e=i.get_web(),u=new jQuery.Deferred;return $.each(r,function(){var i=this;if(!i.url||!i.title||!i.assembly||!i.type||!i.zone||!i.index)throw new Error("Web part object must have url, title, assembly, type, zone and index attributes");n.message("Adding webpart '"+i.title+"' to file "+i.url+".");var s=e.getFileByServerRelativeUrl(($.getServerRealtiveHostWebUrl()+"/"+i.url).replace("//","/")),r=s.getLimitedWebPartManager(SP.WebParts.PersonalizationScope.shared),o=r.get_webParts();t.load(o,"Include(WebPart.Title)");t.executeQueryAsync(function(){for(var h=[],c=o.getEnumerator(),l,a,e,s;c.moveNext();)l=c.get_current().get_webPart(),h.push(l.get_title());if($.inArray(i.title,h)<0)s=$.handleExceptionsScope(t,function(){var n='<?xml version="1.0" encoding="utf-8"?><webParts><webPart xmlns="http://schemas.microsoft.com/WebPart/v3"><metaData><type name="'+i.type+", "+i.assembly+'" /><importErrorMessage>Cannot import this Web Part.<\/importErrorMessage><\/metaData><data><properties><property name="Title" type="string">'+i.title+'<\/property><property name="ChromeType" type="chrometype">None<\/property>'+(i.properties?i.properties:"")+"<\/properties><\/data><\/webPart><\/webParts>",u=r.importWebPart(n);a=u.get_webPart();e=r.addWebPart(a,i.zone,i.index);t.load(e)}),s.successMessage="Webpart '"+i.title+"' added to file "+i.url+".",f.push(s),n.executeQuery(f,u,e);else{n.message("Webpart '"+i.title+"' already exists in file "+i.url+".","info");u.resolve();return}},function(t,i){var r=n.handleError(t,i);r.handled||u.reject(r.message)})}),u.promise()},createGroup:function(r){var u=[],r=CIB.utilities.ensureArray(r),f=new jQuery.Deferred,e=i.get_web(),o=e.get_siteGroups();return $.each(r,function(){var i=this,r;if(!i.title||!i.description)throw new Error("Group object must have title and description attributes");n.message("Creating group '"+i.title+"'.");r=$.handleExceptionsScope(t,function(){var n=new SP.GroupCreationInformation;n.set_title(i.title);n.set_description(i.description);o.add(n)});r.successMessage="Created group '"+i.title+"'.";u.push(r)}),n.executeQuery(u,f),f.promise()},registerRemoteEventReceivers:function(t){var i=new jQuery.Deferred,r;return n.message("Registering event services at: "+t),r='<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">                     <soap:Body>                         <Install xmlns="http://tempuri.org/">                             <hostWebUrl>'+$.getHostWebUrl()+"<\/hostWebUrl>                             <serviceUrl>"+t+"<\/serviceUrl>                         <\/Install>                     <\/soap:Body>                 <\/soap:Envelope>",$.ajax({url:t,type:"POST",dataType:"xml",data:r,contentType:"text/xml",beforeSend:function(n){n.setRequestHeader("SOAPAction","http://tempuri.org/IInstallableEventService/Install")},success:function(){n.message("Event services at: "+t+" registered.","success");i.resolve()},error:function(r,u,f){n.message("Failed to register event receivers at: "+t+" ("+f+").","error");i.reject(f)}}),i.promise()},installWorkflowFromFile:function(t){var i=new jQuery.Deferred,r=new jQuery.Deferred;return SP.WorkflowServices?r.resolve():$.getScript($.getHostWebUrl()+"/_layouts/15/SP.WorkflowServices.js").fail(function(t){n.message("Failed to load SP.Workflow.js or a depdency","error");r.reject(t)}).done(function(){SP.WorkflowServices?r.resolve():(n.message("Failed to load SP.Workflow.js or a depdency","error"),r.reject(error))}),r.promise().done(function(){$.get(t).fail(function(r){n.message("Failed to get workflow data from url: "+t,"error");i.reject(r)}).done(function(r){if(typeof r=="string")try{r=JSON.parse(r)}catch(u){n.message("Failed to parse workflow from url: "+t,"error");i.reject(u);return}CIB.installer.installWorkflow(r).fail(function(r){n.message("Failed to install workflow from url: "+t,"error");i.reject(r)}).done(function(){i.resolve()})})}),i.promise()},installWorkflow:function(t){var l=new jQuery.Deferred;if($.isInternetExplorer()||n.message("The installWorkflow method is only supported in internet explorer, the method will run but errors may occur.","info"),!t.definition||!t.associations)throw new Error('Workflow data must have "definition" and "associations" properties set');if(!t.definition.displayName||!t.definition.xaml)throw new Error('Workflow definition must have at least "displayName" and "xaml" properties set');var f=t.definition,a=CIB.utilities.ensureArray(t.associations),v=CIB.utilities.ensureArray(t.collateral);n.message("Creating workflow definition '"+f.displayName+"'");var i=new SP.ClientContext(jQuery.getHostWebUrl()),s=i.get_web(),p=i.get_site(),h,e,o,c,u=function(t){n.message(t,"error");l.reject(t)};h=new SP.WorkflowServices.WorkflowServicesManager.newObject(i,i.get_web());i.load(s,"Id","Url","ServerRelativeUrl");i.load(p,"Id");i.load(h);i.executeQueryAsyncPromise().fail(u).done(function(){e=h.getWorkflowDeploymentService();o=h.getWorkflowSubscriptionService();i.load(e);i.load(o);$.when(CIB.installer.getListIds(),i.executeQueryAsyncPromise()).fail(u).done(w)});var w=function(t){var r=e.enumerateDefinitions(!1);i.load(r,"Include(DisplayName, Id)");i.executeQueryAsyncPromise().fail(u).done(function(){for(var s=new jQuery.Deferred,o,c=r.getEnumerator(),h;c.moveNext();)if(h=c.get_current(),h.get_displayName()===f.displayName){n.message('Workflow "'+f.displayName+'" already exsists, it will be overwritten');o=h;s.resolve();break}o||(o=new SP.WorkflowServices.WorkflowDefinition.newObject(i,i.get_web()),o.set_displayName(f.displayName),o.set_xaml('<Activity mc:Ignorable="mwaw" x:Class="Workflow deployment in progress.MTW" xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities" xmlns:local="clr-namespace:Microsoft.SharePoint.WorkflowServices.Activities" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:mwaw="clr-namespace:Microsoft.Web.Authoring.Workflow;assembly=Microsoft.Web.Authoring" xmlns:scg="clr-namespace:System.Collections.Generic;assembly=mscorlib" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"><Flowchart StartNode="{x:Reference __ReferenceID0}"><FlowStep x:Name="__ReferenceID0"><mwaw:SPDesignerXamlWriter.CustomAttributes><scg:Dictionary x:TypeArguments="x:String, x:String"><x:String x:Key="Next">4294967294<\/x:String><\/scg:Dictionary><\/mwaw:SPDesignerXamlWriter.CustomAttributes><Sequence><mwaw:SPDesignerXamlWriter.CustomAttributes><scg:Dictionary x:TypeArguments="x:String, x:String"><x:String x:Key="StageAttribute">StageContainer-8EDBFE6D-DA0D-42F6-A806-F5807380DA4D<\/x:String><\/scg:Dictionary><\/mwaw:SPDesignerXamlWriter.CustomAttributes><local:SetWorkflowStatus Disabled="False" Status="Stage 1"><mwaw:SPDesignerXamlWriter.CustomAttributes><scg:Dictionary x:TypeArguments="x:String, x:String"><x:String x:Key="StageAttribute">StageHeader-7FE15537-DFDB-4198-ABFA-8AF8B9D669AE<\/x:String><\/scg:Dictionary><\/mwaw:SPDesignerXamlWriter.CustomAttributes><\/local:SetWorkflowStatus><Sequence DisplayName="Stage 1" /><Sequence><mwaw:SPDesignerXamlWriter.CustomAttributes><scg:Dictionary x:TypeArguments="x:String, x:String"><x:String x:Key="StageAttribute">StageFooter-3A59FA7C-C493-47A1-8F8B-1F481143EB08<\/x:String><\/scg:Dictionary><\/mwaw:SPDesignerXamlWriter.CustomAttributes><\/Sequence><\/Sequence><\/FlowStep><\/Flowchart><\/Activity>'),e.saveDefinition(o),i.load(o,"Id"),i.executeQueryAsyncPromise().fail(u).done(function(){s.resolve()}));s.promise().done(function(){b(o,t)})})},b=function(t,r){var p,s,h,w;if(c=t.get_id(),p=y(f),p){u("Failed to replace one or more tokens in the workflow. See installer logs for details");return}if(CIB.utilities.deserialiseSharePointObject(JSON.stringify(f),t),f.properties){s=f.properties;for(h in s)t.setProperty(h,s[h])}w=function(){var t=new jQuery.Deferred,r;return v.length>0?(r=0,v.forEach(function(f){var c=y(f),s,h,a;if(c)return u("Failed to replace one or more tokens in a workflow form"),t.reject(),!1;n.message("Uploading workflow file "+f.url);var l=($.getServerRealtiveHostWebUrl()+"/"+f.url).replace("//","/"),e=l.split("/"),o=new SP.FileCreationInformation;for(o.set_content(new SP.Base64EncodedByteArray),s=0;s<f.contents.length;s++)o.get_content().append(f.contents.charCodeAt(s));o.set_overwrite(!0);o.set_url(e[e.length-1]);e.splice(e.length-1,1);h=i.get_web().getFolderByServerRelativeUrl(e.join("/")).get_files();a=h.add(o);i.executeQueryAsyncPromise().fail(u).done(function(){++r==v.length&&t.resolve()})})):t.resolve(),t.promise()};t.set_draftVersion("");e.saveDefinition(t);i.load(t,"Id");$.when(w(),i.executeQueryAsyncPromise()).fail(u).done(function(){var s,h,v;e.publishDefinition(t.get_id());s=o.enumerateSubscriptionsByDefinition(c);i.load(s);h=[];for(v in r)h.push(r[v].toString().toLowerCase());i.executeQueryAsyncPromise().fail(u).done(function(){for(var e={},v=!1,p=s.getEnumerator(),r,w;p.moveNext();)if(r=p.get_current(),t.get_restrictToType()!="List"||(w=r.get_eventSourceId().toString(),!(h.indexOf(w.toLowerCase())<0))){if(e[r.get_name()]){u("The workflow definition "+f.displayName+" has more than one associaiton named "+r.get_name());v=!0;break}e[r.get_name()]=r}if(!v){var c=!1,k=0,b=new jQuery.Deferred;$.each(a,function(n,t){if(c|=y(t),c)return u("Failed to replace one or more tokens in the association "+t.name+". See installer logs for details"),!1;var e=i.get_web().get_lists().getById(t.eventSourceId),f=e.get_fields(),r=t.statusFieldName;i.load(f,"Include(InternalName)");i.executeQueryAsyncPromise().fail(u).done(function(){for(var n=!0,t=f.getEnumerator(),i;t.moveNext();)if(i=t.get_current(),i.get_internalName()===r){n=!1;break}if(n){var e="<Field Type='URL' DisplayName='"+r+"' Name='"+r+"' />",u=f.addFieldAsXml(e,!0,SP.AddFieldOptions.addToNoContentType),o=unescape(r.replace(/_x/g,"%u").replace(/_/g,""));u.set_title(o);u.update()}++k===a.length&&b.resolve()})});b.promise().done(function(){($.each(a,function(t,r){var s,h,c;if(n.message("Creating workflow association "+r.name),s=e[r.name],s||(s=new SP.WorkflowServices.WorkflowSubscription.newObject(i)),CIB.utilities.deserialiseSharePointObject(JSON.stringify(r),s),r.properties){h=r.properties;for(c in h)s.setProperty(c,h[c])}if(f.restrictToType=="List")s.setProperty("StatusColumnCreated","1"),o.publishSubscriptionForList(s,r.eventSourceId);else if(f.restrictToType=="Site")o.publishSubscription(s);else return u("Cannot create association as the restrictToType "+f.get_restrictToType()+" was not recognised"),!1}),c)||i.executeQueryAsyncPromise().fail(u).done(function(){n.message("Workflow definition "+f.displayName+" created","success");l.resolve()})})}})})},y=function(t){var i=!1,f=new RegExp("{\\$([^:]*):([^}]*)}","gi"),u=function(t,e){for(var o in t)typeof t[o]=="string"?t[o]&&(t[o]=t[o].replace(f,function(t,u,f){if(u==="List"){if(r[f])return r[f]}else if(u==="Web"){if(f==="$")return s.get_id().toString();if(f==="%")return s.get_url().toString();if(f==="^")return s.get_serverRelativeUrl()}else if(u==="Site"){if(f==="$")return p.get_id().toString()}else if(u==="Definition"){if(f==="$")return c.toString();if(f==="&")return c.toString().replace(/\-/gi,"")}i=!0;var e="Failed to replace token in workflow, a "+u+" cannot be found with the name: "+f;return n.message(e,"error"),t})):e<3&&u(t[o],e+1)};return u(t,0),i};return l.promise()},ensureAccordianGroup:function(r,u,f){var e=new jQuery.Deferred,f=CIB.utilities.ensureArray(f);if(!r||!u||!f||f.length==0)throw new Error("List title, group title and fields must be set");n.message("Creating accordion group '"+u+"' on list '"+r+"'");var o=function(t){n.message(t,"error");e.reject(t)},a=i.get_web(),c=a.get_lists().getByTitle(r),l=c.get_rootFolder(),s=l.get_properties(),h={};return $.each(f,function(n,i){h[i]=c.get_fields().getByInternalNameOrTitle(i);t.load(h[i],"InternalName","Title","Required")}),t.load(s),t.executeQueryAsyncPromise().fail(o).done(function(){var p=s.get_fieldValues().CIBListFormAccordionSetting,nt=new DOMParser,i,v,w,y,g,c;if(p||(p='<?xml version="1.0" encoding="utf-16"?>                            <AccordionSettings xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">                                <Groups><\/Groups>                            <\/AccordionSettings>'),i=nt.parseFromString(p,"text/xml"),$.each(i.getElementsByTagName("Group"),function(n,t){var i=t.getElementsByTagName("Name")[0];if(i.textContent==u)return v=t,!1}),!v){var b=i.getElementsByTagName("Groups")[0],a=i.createElement("Group"),tt=i.createElement("Fields"),k=i.createElement("Name"),d=i.createElement("Order");k.appendChild(i.createTextNode(u));d.appendChild(i.createTextNode(b.childElementCount+1));a.appendChild(tt);a.appendChild(k);a.appendChild(d);b.appendChild(a);v=a}w=0;y=!1;$.each(f,function(t,r){var e=h[r],s=e.get_internalName(),c=e.get_title(),g=e.get_required().toString().toLowerCase(),p=v.getElementsByTagName("Fields")[0],l=!1,a;if($.each(p.getElementsByTagName("Field"),function(t,i){if(i.getElementsByTagName("InteralName")[0].textContent==s)return l=!0,w++,n.message(c+" is already present in accordion group "+u,"info"),!1}),a=!1,l||$.each(i.getElementsByTagName("Field"),function(n,t){if(t.getElementsByTagName("InteralName")[0].textContent==s)return a=!0,!1}),a)return o(c+" is already present in a different accordion group"),y=!1,!1;if(!l){var f=i.createElement("Field"),b=i.createElement("DisplayName"),k=i.createElement("InteralName"),d=i.createElement("Required");b.appendChild(i.createTextNode(c));k.appendChild(i.createTextNode(s));d.appendChild(i.createTextNode(g));f.appendChild(b);f.appendChild(k);f.appendChild(d);p.appendChild(f);y=!0}});y?(g=new XMLSerializer,c=g.serializeToString(i),c=c.replace("<AccordionSettings>",'<AccordionSettings xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'),c='<?xml version="1.0" encoding="utf-16"?>'+c,s.set_item("CIBListFormAccordionSetting",c),l.update(),t.executeQueryAsyncPromise().fail(o).done(function(){n.message("Accordion group '"+u+"' added to list '"+r+"'","success");e.resolve()})):w==f.length&&e.resolve()}),e.promise()},displaySettings:{always:"always",never:"never",whereInGroup:"whereInGroup",whereNotInGroup:"whereNotInGroup"},displaySettingForm:{displayForm:"Display",editForm:"Edit",newForm:"New"},displayMode:{write:"writable",read:"read-only"},updateDisplaySettings:function(r,u){var f=CIB.installer,e=new jQuery.Deferred,u=CIB.utilities.ensureArray(u);if(!r||!u||u.length==0)throw new Error("List title, and display settings must be set");$.each(u,function(n,t){if(!t.field||!t.form||!t.display)throw new Error("Field, Form and Display properties must be set on the field");if(t.display==f.displaySettings.whereInGroup||t.display==f.displaySettings.whereNotInGroup){if(!t.group)throw new Error("Group must be set on the field for where display settings");}else if(Array.isArray(t.display)&&($.each(t.display,function(n,t){if(!t.condition||!t.groupName||!t.mode)throw new Error("Condition,Group name and Mode must be set on field for where display settings");}),!t.logic))throw new Error("logic condition must be set on multiple group where field");});n.message("Updating display settings on list '"+r+"'");var h=function(t){n.message(t,"error");e.reject(t)},o=i.get_web(),s=o.get_allProperties(),c=o.get_lists().getByTitle(r);return t.load(c,"Id"),t.load(s),t.executeQueryAsyncPromise().fail(h).done(function(){var y=c.get_id().toString(),a=("DisplaySetting"+y).toLowerCase(),i=s.get_fieldValues()[a],l,v;for(i=i?i.split("#"):[],i=i.filter(function(n){return Boolean(n)}),i=i.map(function(n){return n.split("|")}),$.each(u,function(n,t){for(var e,r,h,s,o=-1,u=0;u<i.length;u++)if(i[u][0]===t.field&&i[u][1]===t.form){o=u;break}if(e=t.display,Array.isArray(e)?(r="where",$.each(e,function(n,t){r+=";[Me];";r+=t.condition===f.displaySettings.whereNotInGroup?"IsNotInGroup;":"IsInGroup;";r+=t.groupName+";"+t.mode;n!==e.length-1&&(r+=";$where")}),t.logic&&(r+=";~"+t.logic)):((e===f.displaySettings.whereInGroup||e===f.displaySettings.whereNotInGroup)&&(e="where"),r=e+";[Me];",r+=t.display===f.displaySettings.whereNotInGroup?"IsNotInGroup;":"IsInGroup;",t.group?(r+=t.group+";",r+=";writable;~AND"):r+="Approvers;writable;~AND"),o>=0)i[o][0]=t.field,i[o][1]=t.form,i[o][2]=r;else{for(i.push([t.field,t.form,r]),h={},u=0;u<i.length;u++)i[u][0]===t.field&&(h[i[u][1]]=!0);for(s in f.displaySettingForm)s=f.displaySettingForm[s],h[s]||i.push([t.field,s,f.displaySettings.always+";[Me];IsInGroup;Approvers;writable;~AND"])}}),l=0;l<i.length;l++)i[l]=i[l].join("|");v=i.join("#")+"#";s.set_item(a,v);o.update();t.executeQueryAsyncPromise().fail(h).done(function(){n.message("Display settings updated on list '"+r+"'","success");e.resolve()})}),e.promise()},updateWebPartProperties:function(r){var r=CIB.utilities.ensureArray(r),u=new jQuery.Deferred,f=function(t){n.message(t,"error");u.reject(t)},o=i.get_web(),e=0;return $.each(r,function(){var i=this;if(!i.title||!i.file||!i.properties)throw new Error("web part must have title, file and properties attributes set");n.message("Updating web part '"+i.title+"'.");var h=o.getFileByServerRelativeUrl(i.file),c=h.getLimitedWebPartManager(SP.WebParts.PersonalizationScope.shared),s=c.get_webParts();t.load(s,"Include(WebPart.Title, WebPart.Properties)");t.executeQueryAsyncPromise().fail(f).done(function(){for(var l=!1,a=s.getEnumerator(),o,h,c,v;a.moveNext();)if(o=a.get_current(),h=o.get_webPart(),h.get_title()===i.title||i.title==="*"){l=!0;for(c in i.properties)v=i.properties[c],h.get_properties().set_item(c,v);o.saveWebPartChanges()}l?t.executeQueryAsyncPromise().fail(f).done(function(){n.message("Updated properties for web part '"+i.title+"'.","success");++e==r.length&&u.resolve()}):(n.message("No web part with a title '"+i.title+"' was found in file: "+i.file,"info"),++e==r.length&&u.resolve())})}),u.promise()},getContentTypeIdByName:function(r){var u,f;if(!r)throw new Error("Content Type Name cannot be null");u=new jQuery.Deferred;f=function(t){n.message(t,"error");u.reject(t)};n.message("Fetching content type id for name: "+r);var e="",s=i.get_web(),o=s.get_availableContentTypes();return t.load(o,"Include(Id, Name)"),t.executeQueryAsyncPromise().fail(f).done(function(){for(var t=o.getEnumerator(),n;t.moveNext();)if(n=t.get_current(),n.get_name()===r){e=n.get_id();break}u.resolve(e)}),u.promise()}}}(),function(){SP.RequestExecutor&&(SP.RequestExecutorInternalSharedUtility.BinaryDecode=function(n){var i="",r,t;if(n)for(r=new Uint8Array(n),t=0;t<n.byteLength;t++)i=i+String.fromCharCode(r[t]);return i},SP.RequestExecutorUtility.IsDefined=function(n){return n===null||typeof n=="undefined"||!n.length},SP.RequestExecutor.ParseHeaders=function(n){var i,t,r,u,f;if(SP.RequestExecutorUtility.IsDefined(n))return null;var e={},s=new RegExp("\r?\n"),o=n.split(s);for(i=0;i<o.length;i++)t=o[i],SP.RequestExecutorUtility.IsDefined(t)||(r=t.indexOf(":"),r>0&&(u=t.substr(0,r),f=t.substr(r+1),u=SP.RequestExecutorNative.trim(u),f=SP.RequestExecutorNative.trim(f),e[u.toUpperCase()]=f));return e},SP.RequestExecutor.internalProcessXMLHttpRequestOnreadystatechange=function(n,t,i){var r,u,f;n.readyState===4&&(i&&window.clearTimeout(i),n.onreadystatechange=SP.RequestExecutorNative.emptyCallback,r=new SP.ResponseInfo,r.state=t.state,r.responseAvailable=!0,r.body=t.binaryStringResponseBody?SP.RequestExecutorInternalSharedUtility.BinaryDecode(n.response):n.responseText,r.statusCode=n.status,r.statusText=n.statusText,r.contentType=n.getResponseHeader("content-type"),r.allResponseHeaders=n.getAllResponseHeaders(),r.headers=SP.RequestExecutor.ParseHeaders(r.allResponseHeaders),n.status>=200&&n.status<300||n.status===1223?t.success&&t.success(r):(u=SP.RequestExecutorErrors.httpError,f=n.statusText,t.error&&t.error(r,u,f)))})}()
+﻿'use strict';
+
+/*
+
+    Installer.js
+    Provides a framework to provision SharePoint artefacts on host web
+
+*/
+
+var CIB = CIB || {};
+
+CIB.installer = function () {
+
+    var globalContext;
+    var context;
+    var hostContext;
+
+    var listIds = {};
+
+    // This multidimentional array will be storing list name - list view - view ID data
+    var listToViewIds = {};
+
+    $(document).ready(function () {
+        //get context after the document is ready; to get the reference of "CIBSubWebURL" element in "Utilities.js".
+        globalContext = CIB.utilities.getContext()
+        context = globalContext.context;
+        hostContext = globalContext.hostContext;
+
+        if (!$.isInternetExplorer() && !$.hasAppWeb()) {
+            if ($('#install-status').length > 0) {
+                $('#install-status').append(
+                    $('<div class="alert alert-danger" role="alert" style="width:580px;">' +
+                        '<strong>Unsupported browser</strong>' +
+                        '<span>The provisioning wizard will only work with internet explorer for provider hosted apps.</span>' +
+                    '</div>'));
+            }
+            else {
+                throw new Error('Unsupported browser: The provisioning wizard will only work with internet explorer for provider hosted apps.');
+            }
+        }
+    });
+
+    /*
+        Helper namespace contains utility functions for the installer
+    */
+    var helper = function () {
+        return {
+            /*
+                Executes a query containing a series of scopes for SharePoint. 
+                Will resolve or reject a promise based on the results
+            */
+            executeQuery: function (scopes, promise, value) {
+                context.executeQueryAsync(
+                    function () {
+                        var messages = [];
+                        var handled = true;
+                        $.each(scopes, function () {
+                            var scope = this;
+                            if (scope.get_hasException()) {
+                                var error = helper.handleError(this, scope);
+                                handled &= error.handled;
+                                messages.push(error.message);
+                            }
+                            else {
+                                helper.message(scope.successMessage, 'success');
+                                messages.push(scope.successMessage);
+                            }
+                        });
+                        if (handled) { if (value) { promise.resolve(messages, value); } else { promise.resolve(messages); } }
+                        else { promise.reject(messages); }
+
+                    }, function (sender, args) {
+                        var error = helper.handleError(sender, args);
+                        if (error.handled) { promise.resolve(error.message); }
+                        else { promise.reject(error.message); }
+                    });
+            },
+
+            /*
+                Due to SharePoint's CSOM, in cases the most efficient way of detecting if something is already is provisioned
+                is to create it and handle the exception. The following determines if exceptions are expected.
+            */
+            handleError: function (sender, args) {
+                var message = args.get_message ? args.get_message() : args.get_errorMessage();
+                var expectedErrorMessages = [
+                    ' is already activated at scope ',
+                    'A duplicate field name "',
+                    'A duplicate content type "',
+                    'A file or folder with the name ',
+                    'The specified name is already in use.',
+                    'A list, survey, discussion board, or document library with the specified title already exists in this Web site.'];
+                var type = 'error';
+                for (var i = 0; i < expectedErrorMessages.length; i++) {
+                    if (message.slice(0, expectedErrorMessages[i].length) == expectedErrorMessages[i] || message.indexOf(expectedErrorMessages[i]) > -1) {
+                        type = 'info';
+                        message += ' (expected if provisioned already)';
+                        break;
+                    }
+                }
+
+                helper.message(message, type);
+
+                return { handled: type == 'info', message: message };
+            },
+
+            /*
+                Writes colour coded messages to the user, this method assumes the existence of an element with id 'install-status'
+            */
+            message: function (text, type) {
+                if (!type) type = 'message';
+                if (console && console.log) console.log(text + ' [' + type + ']');
+                if (type == 'error') CIB.logging.logError('Provisioning', text, window.location.href);
+                var colour = type == 'success' ? 'green' : (type == 'error' ? 'red' : (type == 'info' ? 'orange' : 'gray'));
+                $('#install-status').append('<span style="color:' + colour + '">' + text + '</span>');
+                var elem = document.getElementById('install-status');
+                if (elem) elem.scrollTop = elem.scrollHeight;
+            },
+
+            /*
+                Get all list ids to for use by lookup columns
+            */
+            updateListIds: function () {
+                var listIdsUpdated = new jQuery.Deferred();
+
+                // Popuate list
+                //if ($.isEmptyObject(listIds))
+                //{
+                var lists = hostContext.get_web().get_lists();
+                context.load(lists, 'Include(Title, Id)');
+                context.executeQueryAsync(function () {
+                    var listEnumerator = lists.getEnumerator();
+                    while (listEnumerator.moveNext()) {
+                        var list = listEnumerator.get_current();
+                        listIds[list.get_title()] = list.get_id();
+                    }
+                    listIdsUpdated.resolve();
+                }, function (sender, args) {
+                    var error = helper.handleError(sender, args);
+                    listIdsUpdated.reject(error.message);
+                });
+                /*}
+				else
+				{
+					listIdsUpdated.resolve();
+				}*/
+
+                return listIdsUpdated.promise();
+            },
+
+            /*
+				Get views by list name
+			*/
+            getViewsForList: function (promises, listName) {
+                var dfd = new $.Deferred();
+
+                var web = hostContext.get_web();
+                var list = web.get_lists().getByTitle(listName);
+                var views = list.get_views();
+
+                context.load(views, 'Include(Id, Title)');
+
+                context.executeQueryAsync(function () {
+                    var viewEnumerator = views.getEnumerator();
+
+                    while (viewEnumerator.moveNext()) {
+                        var existingView = viewEnumerator.get_current();
+                        var viewName = existingView.get_title();
+                        var viewId = existingView.get_id().toString().toLowerCase();
+
+                        if ($.isEmptyObject(listToViewIds[listName]))
+                        {
+                            listToViewIds[listName] = [];
+                        }
+
+                        listToViewIds[listName][viewName] = viewId;
+                    }
+
+                    dfd.resolve();
+                },
+				function (sender, args) {
+				    helper.handleError(sender, args);
+				    dfd.fail();
+				}
+				);
+
+                promises.push(dfd);
+            },
+
+            /*
+                Get all view ids for each  list and store them in multidimentional array
+            */
+            updateViewIds: function () {
+                var promises = [];
+
+                // Populate object with data only if it's empty
+                /*if ($.isEmptyObject(listToViewIds))
+				{*/
+                for(var listName in listIds)
+                {
+                    helper.getViewsForList(promises, listName);
+                }
+                /*}
+				else
+				{
+					var dfd = new $.Deferred();
+					promises.push(dfd);
+					dfd.resolve();
+				}*/
+
+                // Wait for all async operations to complete before moving on to the next step
+                return $.when.apply($, promises).promise();
+            }
+        };
+    }();
+
+    window.onerror = function (errorMsg, url, lineNumber) {
+        CIB.logging.logError('Unhandled JavaScript Error', errorMsg, 'Line: ' + lineNumber + '\r\n' + url);
+        helper.message(errorMsg, 'error');
+    };
+    return {
+
+        message: function (text, type) {
+            helper.message(text, type);
+        },
+
+        getListIds: function () {
+            var getListIds = new jQuery.Deferred();
+
+            helper.updateListIds()
+            .done(function () {
+                getListIds.resolve(listIds);
+            })
+            .fail(function (message) {
+                getListIds.reject(message);
+            });
+
+            return getListIds.promise();
+        },
+
+        /*
+            Activates site or web features
+        */
+        activateFeatures: function (features) {
+            var scopes = [];
+            var features = CIB.utilities.ensureArray(features);
+
+            var featuresActivated = new jQuery.Deferred();
+
+            $.each(features, function () {
+                var feature = this;
+
+                if (!feature.id || !feature.name || !feature.scope)
+                    throw new Error('Feature object must had id, name and scope attributes');
+
+                if (feature.scope != 'site' && feature.scope != 'web')
+                    throw new Error('Feature scope must be either site or web');
+
+                var scope = $.handleExceptionsScope(context, function () {
+                    helper.message('Activateg feature \'' + feature.name + '\'');
+
+                    var activatedFeatures = feature.scope == 'site' ? hostContext.get_site().get_features() : hostContext.get_web().get_features();
+                    var featureDefinition = activatedFeatures.add(new SP.Guid(feature.id), false, SP.FeatureDefinitionScope.farm);
+                });
+
+                scope.successMessage = 'Feature \'' + feature.name + '\' activated.';
+                scopes.push(scope);
+            });
+
+            helper.executeQuery(scopes, featuresActivated);
+
+            return featuresActivated.promise();
+        },
+
+        /*
+            Create lists on the host web
+            @lists { name: 'Example', type: 100 }
+        */
+        createLists: function (lists) {
+            var scopes = [];
+            var lists = CIB.utilities.ensureArray(lists);
+
+            var listsCreated = new jQuery.Deferred();
+
+            $.each(lists, function () {
+                var list = this;
+
+                if (!list.name || !list.type)
+                    throw new Error('List object must have name and type attributes');
+
+                var scope = $.handleExceptionsScope(context, function () {
+                    helper.message('Creating list \'' + list.name + '\'');
+
+                    var lists = hostContext.get_web().get_lists();
+
+                    var newList = new SP.ListCreationInformation();
+                    newList.set_title(list.name);
+                    newList.set_templateType(list.type);
+
+                    if (list.feature) {
+                        newList.set_templateFeatureId(list.feature);
+                    }
+
+                    var updateNeeded = false;
+                    var newList = lists.add(newList);
+                    /*check for CIB document library template */
+                    if (list.type == "10002" || list.type == "10000" || list.type == "10001") {
+                        var listRootFolder = newList.get_rootFolder();
+                        var rootFolderProperties = listRootFolder.get_properties();
+                        if (list.type == "10002") //Public
+                            rootFolderProperties.set_item('InformationSecurityLevel', 0);
+                        else if (list.type == "10001") //Confidential
+                            rootFolderProperties.set_item('InformationSecurityLevel', 2);
+                        else if(list.type == "10000") //Restricted
+                            rootFolderProperties.set_item('InformationSecurityLevel', 1);
+                        listRootFolder.update();
+                    }
+
+                    if (list.hasOwnProperty('hidden')) {
+                        newList.set_hidden(list.hidden);
+                        updateNeeded = true;
+                    }
+
+                    if(list.hasOwnProperty('onQuickLaunch')) {
+                        newList.set_onQuickLaunch(list.onQuickLaunch);
+                        updateNeeded = true;
+                    }
+
+                    if(updateNeeded)
+                        newList.update();
+                });
+                scope.successMessage = 'List \'' + list.name + '\' created.';
+                scopes.push(scope);
+            });
+
+            helper.executeQuery(scopes, listsCreated);
+
+            return listsCreated.promise();
+
+        },
+
+        /*
+            Create folders in pre-existing lists on the host web
+            @folders { name: 'CIB', list: 'Style Library', path: 'Style Library' }
+        */
+        createFolders: function (folders) {
+            var scopes = [];
+            var folders = CIB.utilities.ensureArray(folders);
+
+            var foldersCreated = new jQuery.Deferred();
+
+            $.each(folders, function () {
+                var folder = this;
+
+                if (!folder.name || !folder.list || !folder.path)
+                    throw new Error('Folder object must have name, list and path attributes');
+
+                var scope = $.handleExceptionsScope(context, function () {
+                    helper.message('Creating folder ' + folder.name + ' in list ' + folder.list);
+
+                    var list = hostContext.get_web().get_lists().getByTitle(folder.list);
+
+                    var folderInfo = new SP.ListItemCreationInformation();
+                    folderInfo.set_underlyingObjectType(SP.FileSystemObjectType.folder);
+                    folderInfo.set_leafName(folder.name);
+                    folderInfo.set_folderUrl($.getHostWebUrl() + '/' + folder.path);
+                    var folderItem = list.addItem(folderInfo);
+                    folderItem.set_item('Title', folder.name);
+                    folderItem.update();
+
+                });
+                scope.successMessage = 'Folder ' + folder.name + ' created in list ' + folder.list;
+                scopes.push(scope);
+            });
+
+            helper.executeQuery(scopes, foldersCreated);
+
+            return foldersCreated.promise();
+        },
+
+        // Token should be in the following format: {\$([^:]*):([^}]*)} - {$List:Workflow History}
+        updateFileTokens: function (content){
+
+            // Declare helper functions
+            var getListGuid = function (listIds, listName) {
+                if (listIds[listName])
+                {
+                    return listIds[listName];
+                }
+            };
+
+            var getViewGuid = function (listName, viewName) {
+                //	Example: listToViewIds['Alert Configuration List']['All Items']
+                if (listToViewIds[listName])
+                {
+                    return listToViewIds[listName][viewName];
+                }
+            };
+
+            var processContent = function (content) {
+
+                var tokens = new RegExp('\{\\$([^\:]*)\:([^\}]*)\}', 'gi');
+                content = content.replace(tokens, function (x, tokenType, tokenName) {
+                    if (tokenType === 'List')
+                    {
+                        return getListGuid(listIds, tokenName);
+                    }
+                    return x;
+                });
+
+                // Replace view token like: {\$([^:]*):([^}]*):([^}]*)} - {$ListView:Stakeholder:All Items}
+                tokens = new RegExp('\{\\$([^\:]*)\:([^\}]*)\:([^\}]*)\}', 'gi');
+                content = content.replace(tokens, function (x, tokenType, listToken, viewToken) {
+                    if (tokenType === 'ListView')
+                    {
+                        return getViewGuid(listToken, viewToken);
+                    }
+                    return x;
+                });
+
+
+                return content;
+            };
+
+            content = processContent(content);
+            return content;
+        },
+
+        /*
+            Copies html, js, css and other text based content to the host web
+            Due to browser limitations binary files are not currently supported, see inline comments for more details
+            @files { name: 'App.css', url: 'Style Library/CIB/CSS/Common', path: 'Style Library/CIB/CSS/Common/App.css' }
+        */
+        copyFiles: function (files) {
+
+            var files = CIB.utilities.ensureArray(files);
+
+            var counter = 0;
+            var filesCopied = new jQuery.Deferred();
+
+            $.each(files, function () {
+                var scopes = [];
+                var file = this;
+
+                if (!file.name || !file.url || !file.path)
+                    throw new Error('File object must have name, url and path attributes');
+
+                helper.message('Copying file ' + file.name);
+
+                var getFileUsingRequestExecutor = function (file) {
+                    var binary = file.binary ? true : false;
+                    // https://msdn.microsoft.com/en-us/library/office/dn450841.aspx
+                    // If you're not making cross-domain requests, remove SP.AppContextSite(@target) and ?@target='<host web url>' from the endpoint URI.
+                    // var fileContentUrl = "_api/SP.AppContextSite(@target)/web/GetFileByServerRelativeUrl('" + ($.getServerRealtiveApptWebUrl() + "/" + file.path).replace('//', '/') + "')/$value?@target='" + $.getHostWebUrl() + "'";
+                    var fileContentUrl = "_api/web/GetFileByServerRelativeUrl('" + ($.getServerRealtiveApptWebUrl() + "/" + file.path).replace('//', '/') + "')/$value";
+                    var executor = new SP.RequestExecutor($.getAppWebUrl());
+                    var info = {
+                        url: fileContentUrl,
+                        method: "GET",
+                        binaryStringResponseBody: binary,
+                        success: function (data) {
+                            uploadFileToHostWeb(file, data.body);
+                        },
+                        error: function (err) {
+                            // Resort to using AJAX
+                            getFileUsingAjax(file);
+                        }
+                    };
+                    executor.executeAsync(info);
+                };
+
+                var getFileUsingAjax = function (file) {
+                    $.support.cors = true;
+                    var fileContentUrl = $.getAppWebUrl() + "/_api/SP.AppContextSite(@target)/web/GetFileByServerRelativeUrl('" + ($.getServerRealtiveApptWebUrl() + "/" + file.path).replace('//', '/') + "')/$value?@target='" + $.getHostWebUrl() + "'";
+                    $.ajax({ url: fileContentUrl, cache: false })
+                        .done(function (content) {
+                            uploadFileToHostWeb(file, content);
+                        })
+                        .fail(function (sender, status) {
+                            filesCopied.reject(sender.statusText);
+                        });
+                };
+
+                var uploadFileToHostWeb = function (file, fileContents) {
+
+                    // Token replacement should never happen for Installer.js itself. This may occur when installer installs itself
+                    if (file.name != "Installer.js") {
+                        // Do token replacement if necessary. Currently supported tokens are {#HostWebURL#} and {#ServerRelativeHostWebURL#}
+                        fileContents = fileContents.replace(/{#HostWebURL#}/g, $.getHostWebUrl());
+                        fileContents = fileContents.replace(/{#ServerRelativeHostWebURL#}/g, $.getServerRealtiveHostWebUrl());
+                        fileContents = CIB.installer.updateFileTokens(fileContents);
+                    }
+
+                    var destinationUrl = ($.getServerRealtiveHostWebUrl() + '/' + file.url).replace('//', '/');
+
+                    var scope = $.handleExceptionsScope(context, function () {
+
+                        if (file.publish) {
+                            // Attempt to checkout the document and ignore any errors.
+                            // The file upload code will throw an error if something is unexpected
+                            $.handleExceptionsScope(context, function () {
+                                var existingFile = hostContext.get_web().getFileByServerRelativeUrl(destinationUrl + '/' + file.name);
+                                existingFile.checkOut();
+                            });
+                        }
+
+                        var createInfo = new SP.FileCreationInformation();
+                        createInfo.set_content(new SP.Base64EncodedByteArray());
+                        for (var i = 0; i < fileContents.length; i++) {
+                            createInfo.get_content().append(fileContents.charCodeAt(i));
+                        }
+                        createInfo.set_overwrite(true);
+                        createInfo.set_url(file.name);
+                        var files = hostContext.get_web().getFolderByServerRelativeUrl(destinationUrl).get_files();
+                        var newFile = files.add(createInfo);
+                        if (file.publish) {
+                            newFile.checkIn('Checked in by provisioning framework.', SP.CheckinType.majorCheckIn);
+                            newFile.publish('Published by provisioning framework.');
+                        }
+                    });
+
+                    scope.successMessage = 'File ' + file.name + ' created at ' + file.url;
+                    scopes.push(scope);
+
+                    if (++counter == files.length)
+                        helper.executeQuery(scopes, filesCopied);
+                };
+
+                if ($.isAppWeb()) {
+                    getFileUsingRequestExecutor(file);
+                }
+                else {
+                    getFileUsingAjax(file);
+                }
+
+            });
+
+            return filesCopied.promise();
+        },
+
+        /*
+            Helper function to populate a mapping of lists ids to be used when creating lookup columns
+        */
+        updateListIds: function () {
+            return helper.updateListIds();
+        },
+
+        updateViewIds: function () {
+            return helper.updateViewIds();
+        },
+
+        /*
+            Create a site column in the host web
+            @columns { name: 'cmppYear', id: '{F4605722-C180-46B0-8AAE-0C0BC0EA4EC3}', displayName: 'Year', type: 'Number', group: 'Test' }
+            Addtional parameters are supported for lookups, calculated, datetime and choice fields
+        */
+        createSiteColumns: function (columns) {
+            var fields = hostContext.get_web().get_fields();
+            return CIB.installer.createColumns(columns, fields);
+        },
+
+        /*
+            Create a site column in the specified list
+            @listTitle 'Documents'
+            @columns { name: 'cmppYear', id: '{F4605722-C180-46B0-8AAE-0C0BC0EA4EC3}', displayName: 'Year', type: 'Number', group: 'Test' }
+            Addtional parameters are supported for lookups, calculated, datetime and choice fields
+        */
+        createListColumns: function (listTitle, columns) {
+            var list = hostContext.get_web().get_lists().getByTitle(listTitle);
+            var fields = list.get_fields();
+            return CIB.installer.createColumns(columns, fields);
+        },
+
+        /*
+            Create a site column in the host web
+            @columns { name: 'cmppYear', id: '{F4605722-C180-46B0-8AAE-0C0BC0EA4EC3}', displayName: 'Year', type: 'Number', group: 'Test' }
+            @fields a field collection from a web or list object
+            Addtional parameters are supported for lookups, calculated, datetime and choice fields
+        */
+        createColumns: function (columns, fields) {
+            var scopes = [];
+            var columns = CIB.utilities.ensureArray(columns);
+            var columnsCreated = new jQuery.Deferred();
+
+            if (!fields)
+                throw new Error('Field collection not provided, use createSiteColumns or createListColumns instead.');
+
+            var createColumns = function () {
+                $.each(columns, function () {
+                    var column = this;
+
+                    if (!column.id || !column.name || !column.type || !column.displayName || !column.group)
+                        throw new Error('Column object must have id, name, type, group and displayName attributes');
+
+                    var scope = $.handleExceptionsScope(context, function () {
+                        helper.message('Creating column \'' + column.displayName + '\'');
+
+                        var hidden = column.hidden ? 'true' : 'false';
+                        var required = column.required ? 'true' : 'false';
+                        var multi = column.multi ? 'true' : 'false';
+
+                        var fieldXml = "<Field ID='" + column.id + "' Type='" + column.type + "' DisplayName='" + column.name +
+                            "' Name='" + column.name + "' Group='" + column.group + "' Required='" + required + "' />";
+
+                        if (column.type.toLowerCase() == 'calculated') {
+
+                            if (!column.formula || !column.resultType)
+                                throw new Error('Calculated columns must have a formula and resultType set');
+
+                            var forumulaXml = '<Formula>' + column.formula + '</Formula>';
+                            fieldXml = fieldXml.replace(' />', ' ResultType="' + column.resultType + '">' + forumulaXml + '</Field>');
+                        }
+
+                        if (multi == 'true')
+                        {
+                            fieldXml = fieldXml.replace(' />', ' Mult="TRUE" />');
+                        }
+
+                        var field = fields.addFieldAsXml(fieldXml, false, SP.AddFieldOptions.AddToNoContentType);
+
+                        if (hidden != null) {
+                            field.set_hidden(hidden);
+                        }
+
+                        field.set_title(column.displayName);
+                        field.set_required(required);
+
+                        if (column.defaultValue)
+                            field.set_defaultValue(column.defaultValue);
+
+                        context.load(field);
+
+                        if (column.type.toLowerCase() == 'lookup') {
+                            if (!listIds[column.lookupList]) {
+                                var message = 'The id for the list ' + column.lookupList + ' has not been loaded. updateListIds must be called before creating lookup fields';
+                                columnsCreated.reject(message);
+                                throw new Error(message);
+                            }
+                            var fieldLookup = context.castTo(field, SP.FieldLookup);
+                            fieldLookup.set_lookupList(listIds[column.lookupList]);
+                            fieldLookup.set_lookupField(column.lookupField);
+                            fieldLookup.update();
+
+                            if (column.additionalFields) {
+                                $.each(column.additionalFields, function () {
+                                    var additionalColumn = this;
+                                    fields.addDependentLookup(additionalColumn.displayName, field, additionalColumn.target);
+                                });
+                            }
+                        }
+                            // below code is to handle MultiLookup fields
+                        else if (column.type.toLowerCase() == 'lookupmulti') {
+                            if (!listIds[column.lookupList]) {
+                                var message = 'The id for the list ' + column.lookupList + ' has not been loaded. updateListIds must be called before creating lookup fields';
+                                columnsCreated.reject(message);
+                                throw new Error(message);
+                            }
+                            var fieldLookup = context.castTo(field, SP.FieldLookup);
+                            fieldLookup.set_lookupList(listIds[column.lookupList]);
+                            fieldLookup.set_lookupField(column.lookupField);
+                            fieldLookup.set_allowMultipleValues(true);
+                            fieldLookup.update();
+
+                            if (column.additionalFields) {
+                                $.each(column.additionalFields, function () {
+                                    var additionalColumn = this;
+                                    fields.addDependentLookup(additionalColumn.displayName, field, additionalColumn.target);
+                                });
+                            }
+                        }
+                        else if (column.type.toLowerCase() == 'currency' && column.locale) {
+                            var fieldCurrency = context.castTo(field, SP.FieldCurrency);
+                            fieldCurrency.set_currencyLocaleId(column.locale);
+                            fieldCurrency.update();
+                        }
+                        else if (column.type.toLowerCase() == 'number') {
+                            var fieldNumber = context.castTo(field, SP.FieldNumber);
+                            if (column.minimumValue)
+                                fieldNumber.set_minimumValue(column.minimumValue);
+                            if (column.maximumValue)
+                                fieldNumber.set_maximumValue(column.maximumValue);
+                            fieldNumber.update();
+                        }
+                        else if (column.type.toLowerCase() == 'choice' && column.choices) {
+                            var fieldChoice = context.castTo(field, SP.FieldChoice);
+                            fieldChoice.set_choices($.makeArray(column.choices));
+                            fieldChoice.update();
+                        }
+                        else if (column.type.toLowerCase() == 'multichoice' && column.choices) {
+                            var fieldChoice = context.castTo(field, SP.FieldMultiChoice);
+                            fieldChoice.set_choices($.makeArray(column.choices));
+                            fieldChoice.update();
+                        }
+                            /*else if (column.type.toLowerCase() == 'calculated' && column.formula) {
+                                var fieldCalculated = context.castTo(field, SP.FieldCalculated);
+                                fieldCalculated.set_formula(column.formula);
+                                fieldCalculated.update();
+                            }*/
+                        else if (column.type.toLowerCase() == 'datetime' && column.dateOnly) {
+                            var fieldDateTime = context.castTo(field, SP.FieldDateTime);
+                            fieldDateTime.set_displayFormat(SP.DateTimeFieldFormatType.dateOnly);
+                            fieldDateTime.update();
+                        }
+                        else if (column.type.toLowerCase() == 'taxonomyfieldtypemulti') {
+                            var fieldTaxonomy = context.castTo(field, SP.Taxonomy.TaxonomyField);
+                            fieldTaxonomy.set_allowMultipleValues(true);
+                            fieldTaxonomy.update();
+                        }
+                        else {
+                            field.update();
+                        }
+
+                    });
+                    scope.successMessage = 'Column ' + column.displayName + ' created';
+                    scopes.push(scope);
+                });
+
+                helper.executeQuery(scopes, columnsCreated);
+            };
+            if (columns.filter(function (e) { return e.type == 'lookup'; }).length > 0) {
+                helper.updateListIds()
+                    .done(createColumns);
+            }
+            else {
+                createColumns();
+            }
+
+            return columnsCreated.promise();
+        },
+
+        /*
+            Create a content type on the host web
+            @contentTypes { name: 'Test Content Type', id: '0x0100C4AE7CEF4055486987E22766C23F7F35', group: 'Test' }
+        */
+        createContentTypes: function (contentTypes) {
+            var scopes = [];
+            var contentTypes = CIB.utilities.ensureArray(contentTypes);
+
+            var contentTypesCreated = new jQuery.Deferred();
+
+            $.each(contentTypes, function () {
+                var contentType = this;
+
+                if (!contentType.name || !contentType.id || !contentType.group)
+                    throw new Error('Content Type object must have id, name and group attributes');
+
+                var scope = $.handleExceptionsScope(context, function () {
+                    helper.message('Creating content type \'' + contentType.name + '\'');
+
+                    var contentTypes = hostContext.get_web().get_contentTypes();
+
+                    var newContentType = new SP.ContentTypeCreationInformation();
+                    newContentType.set_id(contentType.id);
+                    newContentType.set_name(contentType.name);
+                    newContentType.set_group(contentType.group);
+
+                    contentTypes.add(newContentType);
+
+                });
+                scope.successMessage = 'Content type ' + contentType.name + ' created';
+                scopes.push(scope);
+            });
+
+            helper.executeQuery(scopes, contentTypesCreated);
+
+            return contentTypesCreated.promise();
+        },
+
+        /*
+            Add a list of site columns to a content type
+            @contentTypeId '0x0100C4AE7CEF4055486987E22766C23F7F35'
+            @columns [ 'cmppMonth', 'cmppYear' ]
+        */
+        addColumnsToContentType: function (contentTypeId, columns) {
+            var columns = CIB.utilities.ensureArray(columns);
+
+            var columnsAdded = new jQuery.Deferred();
+
+            var fields = hostContext.get_web().get_fields();
+            var contentTypes = hostContext.get_web().get_contentTypes();
+            var contentType = contentTypes.getById(contentTypeId);
+            var fieldLinks = contentType.get_fieldLinks();
+
+            context.load(fieldLinks);
+
+            context.executeQueryAsync(function () {
+                var scopes = [];
+                var existingColumnNames = [];
+                var existingColumnIds = [];
+                var fieldLinkEnumerator = fieldLinks.getEnumerator();
+                while (fieldLinkEnumerator.moveNext()) {
+                    var fieldLink = fieldLinkEnumerator.get_current();
+                    existingColumnIds.push(fieldLink.get_id().toString().toLowerCase());
+                    existingColumnNames.push(fieldLink.get_name());
+                }
+                $.each(columns, function () {
+                    var column = this.toString();
+                    if ($.inArray(column, existingColumnNames) >= 0) {
+                        helper.message('Column already added to content type \'' + column +
+                            '\'. (expected if provisioned already)', 'info');
+                        return;
+                    }
+                    var scope = $.handleExceptionsScope(context, function () {
+                        var field = fields.getByInternalNameOrTitle(column);
+                        var fieldRef = new SP.FieldLinkCreationInformation();
+                        var contentTypeField = fieldRef.set_field(field);
+                        fieldLinks.add(fieldRef);
+                    });
+                    scope.successMessage = 'Added column ' + column + ' to content type';
+                    scopes.push(scope);
+                });
+
+                contentType.update(true);
+
+                helper.executeQuery(scopes, columnsAdded);
+
+            }, function (sender, args) {
+                var error = helper.handleError(sender, args);
+                if (error.handled) { columnsAdded.resolve(error.message); }
+                else { columnsAdded.reject(error.message); }
+            });
+
+            return columnsAdded.promise();
+        },
+
+        /*
+            Hide columns in a list from the default list edit forms
+            @listTitle 'Documents'
+            @columns [ 'cmppMonth', 'cmppYear' ]
+        */
+        hideColumnsFromEditForm: function (listTitle, columns) {
+            var scopes = [];
+            var columns = CIB.utilities.ensureArray(columns);
+
+            var columnsHid = new jQuery.Deferred();
+
+            helper.message('Hiding columns in list \'' + listTitle + '\'');
+
+            var web = hostContext.get_web();
+            var list = web.get_lists().getByTitle(listTitle);
+            var listfields = list.get_fields();
+
+            context.load(listfields);
+
+            context.executeQueryAsync(function () {
+                $.each(columns, function () {
+                    var column = this;
+
+                    var scope = $.handleExceptionsScope(context, function () {
+                        var field = listfields.getByInternalNameOrTitle(column);
+                        field.setShowInEditForm(false);
+                        field.update();
+                    });
+
+                    scope.successMessage = 'Column "' + column + '" hidden from edit view';
+                    scopes.push(scope);
+                });
+            }, function (sender, args) {
+                var error = helper.handleError(sender, args);
+                if (error.handled) { columnsHid.resolve(error.message); }
+                else { columnsHid.reject(error.message); }
+            });
+
+            helper.executeQuery(scopes, columnsHid);
+
+            return columnsHid.promise();
+        },
+
+        /*
+           Hide columns in a list from the default list edit forms
+           @listTitle 'Documents'
+           @viewName 'Important Documents'
+           @viewField ['Title']
+           @query '<Where></Where>
+           @viewType SP.ViewType.calendar
+       */
+        createView: function (listTitle, viewName, viewFields, query, viewType, rowLimit, paged) {
+            var scopes = [];
+
+            var viewCreated = new jQuery.Deferred();
+
+            helper.message('Creating view ' + viewName + ' for list \'' + listTitle + '\'');
+
+            var web = hostContext.get_web();
+            var list = web.get_lists().getByTitle(listTitle);
+            var views = list.get_views();
+            var viewFields = $.ensureArray(viewFields);
+
+            context.load(views, 'Include(Title, ViewFields)');
+
+            context.executeQueryAsync(function () {
+
+                var currentView;
+                var viewEnumerator = views.getEnumerator();
+
+                while (viewEnumerator.moveNext()) {
+                    var existingView = viewEnumerator.get_current();
+                    if (viewName == existingView.get_title()) {
+                        helper.message('View \'' + viewName + '\' already exists for list ' + listTitle + '.', 'info');
+                        currentView = existingView;
+                        break;
+                    }
+                }
+
+                var scope = $.handleExceptionsScope(context, function () {
+
+                    //If paged is true,"Display items in batches of the specified size" is checked
+                    //If paged is false, "Limit the total number of items returned to the specified amount" is checked                                         
+                    if (currentView) {
+                        var currentViewFields = [];
+                        var fields = currentView.get_viewFields();
+                        var viewFieldEnumerator = fields.getEnumerator();
+
+                        while (viewFieldEnumerator.moveNext()) {
+                            currentViewFields.push(viewFieldEnumerator.get_current());
+                        }
+
+                        viewFields.forEach(function (fieldName, index) {
+                            if (currentViewFields.indexOf(fieldName) < 0)
+                                fields.add(fieldName);
+                        });
+
+                        if (query)
+                            currentView.set_viewQuery(query);
+                        //set row limit for the view                       
+                        if (rowLimit)
+                            currentView.set_rowLimit(rowLimit);
+                        if ((paged != undefined) && (paged != null))
+                            currentView.set_paged(paged);
+
+                        currentView.update();
+                    }
+                    else {
+                        var view = new SP.ViewCreationInformation();
+                        view.set_title(viewName);
+                        view.set_viewFields(viewFields);
+                        view.set_query(query);
+                        //set row limit for the view                       
+                        if (rowLimit)
+                            view.set_rowLimit(parseInt(rowLimit));
+                        if (viewType)
+                            view.set_viewTypeKind(viewType);                                                  
+                        if ((paged != undefined) && (paged != null))
+                            view.set_paged(paged);
+
+                        views.add(view);
+                    }
+                });
+
+                scope.successMessage = viewName + (currentView ? ' updated' : ' created ') + 'for list \'' + listTitle + '\'';
+                scopes.push(scope);
+
+                helper.executeQuery(scopes, viewCreated);
+
+            }, function (sender, args) {
+                var error = helper.handleError(sender, args);
+                if (error.handled) { viewCreated.resolve(error.message); }
+                else { viewCreated.reject(error.message); }
+            });
+
+            return viewCreated.promise();
+        },
+
+        /*
+            Adds existing content types to a list
+            @listTitle 'Documents'
+            @contentTypeIds [ '0x0100C4AE7CEF4055486987E22766C23F7F35' ]
+        */
+        addContentTypesToList: function (listTitle, contentTypeIds) {
+            var scopes = [];
+            var contentTypeIds = CIB.utilities.ensureArray(contentTypeIds);
+
+            var contentTypesAdded = new jQuery.Deferred();
+
+            helper.message('Adding content types to list \'' + listTitle + '\'');
+
+            var web = hostContext.get_web();
+            var list = web.get_lists().getByTitle(listTitle);
+
+            list.set_contentTypesEnabled(true);
+
+            var contentTypes = web.get_contentTypes();
+            var listContentTypes = list.get_contentTypes();
+
+            $.each(contentTypeIds, function () {
+                var contentTypeId = this;
+
+                var scope = $.handleExceptionsScope(context, function () {
+                    var existingContentType = contentTypes.getById(contentTypeId);
+                    listContentTypes.addExistingContentType(existingContentType);
+                });
+
+                scope.successMessage = 'Content type ' + contentTypeId + ' added to list';
+                scopes.push(scope);
+            });
+
+            helper.executeQuery(scopes, contentTypesAdded);
+
+            return contentTypesAdded.promise();
+        },
+
+        /*
+           Removed an existing content types from a list
+           @listTitle 'Documents'
+           @contentTypeNames [ 'Docuemnt' ]
+       */
+        removeContentTypesFromList: function (listTitle, contentTypeNames) {
+            var scopes = [];
+            var contentTypeNames = CIB.utilities.ensureArray(contentTypeNames);
+
+            var contentTypesRemoved = new jQuery.Deferred();
+
+            helper.message('Removing content types from list \'' + listTitle + '\'');
+
+            var web = hostContext.get_web();
+            var list = web.get_lists().getByTitle(listTitle);
+
+            list.set_contentTypesEnabled(true);
+
+            var listContentTypes = list.get_contentTypes();
+
+            context.load(listContentTypes, 'Include(Id, Name)');
+
+            context.executeQueryAsync(function () {
+
+                $.each(contentTypeNames, function () {
+                    var contentTypeName = this;
+                    var found = false;
+                    var contentTypeEnumerator = listContentTypes.getEnumerator();
+                    while (contentTypeEnumerator.moveNext()) {
+                        var contentType = contentTypeEnumerator.get_current();
+                        if (contentType.get_name().toLowerCase() == contentTypeName.toLowerCase()) {
+                            var scope = $.handleExceptionsScope(context, function () {
+                                contentType.deleteObject();
+                            });
+
+                            scope.successMessage = 'Content type ' + contentTypeName + ' removed from list';
+                            scopes.push(scope);
+
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        helper.message('Could not find \'' + contentTypeName + '\' in list ' + listTitle + '.', 'info');
+                    }
+                });
+
+                helper.executeQuery(scopes, contentTypesRemoved);
+
+            }, function (sender, args) {
+                var error = helper.handleError(sender, args);
+                if (error.handled) { contentTypesRemoved.resolve(error.message); }
+                else { contentTypesRemoved.reject(error.message); }
+            });
+
+            return contentTypesRemoved.promise();
+        },
+
+        /*
+           Sets the default content type for a list
+           @listTitle 'Documents'
+           @contentTypeName 'Document'
+        */
+        setDefaultContentType: function (listTitle, contentTypeName) {
+            var contentTypeSet = new jQuery.Deferred();
+
+            helper.message('Setting default content type on list \'' + listTitle + '\' to ' + contentTypeName);
+
+            var web = hostContext.get_web();
+            var list = web.get_lists().getByTitle(listTitle);
+            var listContentTypes = list.get_contentTypes();
+            var rootFolder = list.get_rootFolder();
+
+            context.load(rootFolder, 'ContentTypeOrder', 'UniqueContentTypeOrder');
+            context.load(listContentTypes, 'Include(Id, Name)');
+
+            context.executeQueryAsync(function () {
+                var scopes = [];
+
+                var scope = $.handleExceptionsScope(context, function () {
+                    var newOrder = new Array();
+                    var contentTypeEnumerator = listContentTypes.getEnumerator();
+                    var order = rootFolder.get_contentTypeOrder();
+                    while (contentTypeEnumerator.moveNext()) {
+                        var contentType = contentTypeEnumerator.get_current();
+                        if (contentType.get_name().toLowerCase() == "folder")
+                            continue;
+                        if (contentType.get_name().toLowerCase() == contentTypeName.toLowerCase()) {
+                            newOrder.splice(0, 0, contentType.get_id());
+                            continue;
+                        }
+                        for (var i = 0; i < order.length; i++) {
+                            if (order[i].toString() == contentType.get_id()) {
+                                newOrder.push(contentType.get_id());
+                                break;
+                            }
+                        }
+                    }
+                    rootFolder.set_uniqueContentTypeOrder(newOrder);
+                    rootFolder.update();
+                });
+
+                scope.successMessage = 'Default content type set on list \'' + listTitle + '\' to ' + contentTypeName;
+                scopes.push(scope);
+
+                helper.executeQuery(scopes, contentTypeSet);
+
+            }, function (sender, args) {
+                var error = helper.handleError(sender, args);
+                if (error.handled) { contentTypeSet.resolve(error.message); }
+                else { contentTypeSet.reject(error.message); }
+            });
+
+            return contentTypeSet.promise();
+        },
+
+        /*
+           Creates an index for columns in a list
+           @listTitle 'Documents'
+           @indicies [ 'cmppMonth', 'cmppYear' ]
+        */
+        addIndiciesToList: function (listTitle, indicies) {
+            var scopes = [];
+            var indicies = CIB.utilities.ensureArray(indicies);
+
+            var indiciesSet = new jQuery.Deferred();
+
+            helper.message('Setting indicies on list \'' + listTitle + '\'');
+
+            var web = hostContext.get_web();
+            var list = web.get_lists().getByTitle(listTitle);
+            var listFields = list.get_fields();
+
+            $.each(indicies, function () {
+                var fieldName = this;
+                var scope = $.handleExceptionsScope(context, function () {
+                    var field = listFields.getByInternalNameOrTitle(fieldName);
+                    field.set_indexed(true);
+                    field.update();
+                    list.update();
+                });
+                scope.successMessage = 'Index created on column ' + fieldName + ' in list \'' + listTitle + '\'';
+                scopes.push(scope);
+            });
+
+            helper.executeQuery(scopes, indiciesSet);
+
+            return indiciesSet.promise();
+        },
+
+        /*
+           Enforces unique values for columns on a list
+           @listTitle 'Documents'
+           @columns [ 'Title' ]
+        */
+        enforceUniqueValues: function (listTitle, columns) {
+            var scopes = [];
+            var columns = CIB.utilities.ensureArray(columns);
+
+            var uniqueValuesEnforced = new jQuery.Deferred();
+
+            helper.message('Enforcing unique values on list \'' + listTitle + '\'');
+
+            var web = hostContext.get_web();
+            var list = web.get_lists().getByTitle(listTitle);
+            var listFields = list.get_fields();
+
+            $.each(columns, function () {
+                var fieldName = this;
+                var scope = $.handleExceptionsScope(context, function () {
+                    var field = listFields.getByInternalNameOrTitle(fieldName);
+                    field.set_indexed(true);
+                    field.set_enforceUniqueValues(true);
+                    field.update();
+                    list.update();
+                });
+                scope.successMessage = 'Enforced unique values on column ' + fieldName + ' in list \'' + listTitle + '\'';
+                scopes.push(scope);
+            });
+
+            helper.executeQuery(scopes, uniqueValuesEnforced);
+
+            return uniqueValuesEnforced.promise();
+        },
+
+        addListViewWebPartToPage: function (url, listName, viewName, title, zone, index) {
+
+            var webpartAdded = new jQuery.Deferred();
+
+            CIB.installer.addWebPartsToPage({
+                url: url,
+                title: title,
+                assembly: 'Microsoft.SharePoint, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c',
+                type: 'Microsoft.SharePoint.WebPartPages.XsltListViewWebPart',
+                zone: zone,
+                index: index,
+                properties: '<property name="ListUrl" type="string">' + listName + '</property>'
+            }).done(function (messages, definition) {
+
+                /*  Cannot chagne the ViewGuid of XsltListViewWebPart
+                    This is a CSOM issue, CSOM only let's you update properties on the current class and not it's base type.
+                    This means we cannot set what view to use as it's on the BaseXsltListViewWebPart
+                    Instead, as a workaround we modify the view to match the one specified
+                    This works for standard views, the type of view can't be changed so for calendars this approach will not work
+                */
+
+                var webpartId = definition.get_id();
+                var list = hostContext.get_web().get_lists().getByTitle(listName.replace('Lists/', ''));
+                var view = list.get_views().getById(webpartId);
+                var modelView = list.get_views().getByTitle(viewName);
+                var modelViewFields = modelView.get_viewFields();
+                context.load(view);
+                context.load(modelView);
+                context.load(modelViewFields);
+                context.executeQueryAsyncPromise()
+                .done(function () {
+                    view.set_viewData(modelView.get_viewData());
+                    view.set_viewJoins(modelView.get_viewJoins());
+                    view.set_viewProjectedFields(modelView.get_viewProjectedFields);
+                    view.set_viewQuery(modelView.get_viewQuery());
+                    view.get_viewFields().removeAll();
+                    var viewFieldsEnumerator = modelViewFields.getEnumerator();
+                    while (viewFieldsEnumerator.moveNext()) {
+                        var fieldName = viewFieldsEnumerator.get_current();
+                        view.get_viewFields().add(fieldName);
+                    }
+                    view.update();
+                    context.executeQueryAsyncPromise()
+                        .done(function () {
+                            helper.message('Web part view updated to match ' + viewName, 'success');
+                            webpartAdded.resolve();
+                        })
+                        .fail(function (message) {
+                            helper.message(message, 'error');
+                            webpartAdded.reject(message);
+                        });
+                })
+                .fail(function (message) {
+                    helper.message(message, 'error');
+                    webpartAdded.reject(message);
+                });
+            });
+
+            return webpartAdded.promise();
+
+        },
+
+        /*
+           Add a webpart to a page
+           @webparts {
+                         url: 'Lists/Milestones/EditForm.aspx',
+                         title: 'CMPP App View',
+                         assembly: 'Microsoft.SharePoint, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c',
+                         type: 'Microsoft.SharePoint.WebPartPages.ScriptEditorWebPart',
+                         zone: 'Main',
+                         index: 1,
+                         properties: '<property name="Content" type="string"><![CDATA[<script>// example script</script>]]></property>'
+                     }
+        */
+        addWebPartsToPage: function (webparts) {
+            var scopes = [];
+            var webparts = CIB.utilities.ensureArray(webparts);
+            var web = hostContext.get_web();
+
+            var webpartsAdded = new jQuery.Deferred();
+
+            $.each(webparts, function () {
+                var webpart = this;
+
+                if (!webpart.url || !webpart.title || !webpart.assembly || !webpart.type || !webpart.zone || !webpart.index)
+                    throw new Error('Web part object must have url, title, assembly, type, zone and index attributes');
+
+                helper.message('Adding webpart \'' + webpart.title + '\' to file ' + webpart.url + '.');
+
+                var file = web.getFileByServerRelativeUrl(($.getServerRealtiveHostWebUrl() + '/' + webpart.url).replace('//', '/'));
+                var webPartManager = file.getLimitedWebPartManager(SP.WebParts.PersonalizationScope.shared);
+                var webparts = webPartManager.get_webParts();
+                context.load(webparts, 'Include(WebPart.Title)');
+                context.executeQueryAsync(function () {
+                    var existingTitles = [];
+                    var webPartsEnumerator = webparts.getEnumerator();
+                    while (webPartsEnumerator.moveNext()) {
+                        var existingWebPart = webPartsEnumerator.get_current().get_webPart();
+                        existingTitles.push(existingWebPart.get_title());
+                    }
+                    var newWebPart;
+                    var definition;
+                    if ($.inArray(webpart.title, existingTitles) < 0) {
+                        var scope = $.handleExceptionsScope(context, function () {
+                            var webPartXml = '<?xml version=\"1.0\" encoding=\"utf-8\"?>' +
+                                '<webParts>' +
+                                '<webPart xmlns="http://schemas.microsoft.com/WebPart/v3">' +
+                                '<metaData>' +
+                                    '<type name="' + webpart.type + ', ' + webpart.assembly + '" />' +
+                                '<importErrorMessage>Cannot import this Web Part.</importErrorMessage>' +
+                                '</metaData>' +
+                                '<data>' +
+                                '<properties>' +
+                                    '<property name="Title" type="string">' + webpart.title + '</property>' +
+                                    '<property name="ChromeType" type="chrometype">None</property>' +
+                                    (webpart.properties ? webpart.properties : '') +
+                                '</properties>' +
+                                '</data>' +
+                                '</webPart>' +
+                                '</webParts>';
+
+                            var webPartDefinition = webPartManager.importWebPart(webPartXml);
+                            newWebPart = webPartDefinition.get_webPart();
+                            definition = webPartManager.addWebPart(newWebPart, webpart.zone, webpart.index);
+                            context.load(definition);
+                        });
+
+                        scope.successMessage = 'Webpart \'' + webpart.title + '\' added to file ' + webpart.url + '.';
+                        scopes.push(scope);
+
+                        helper.executeQuery(scopes, webpartsAdded, definition);
+                    }
+                    else {
+                        helper.message('Webpart \'' + webpart.title + '\' already exists in file ' + webpart.url + '.', 'info');
+                        webpartsAdded.resolve();
+                        return;
+                    }
+                }, function (sender, args) {
+                    var error = helper.handleError(sender, args);
+                    if (!error.handled) { webpartsAdded.reject(error.message); }
+                });
+            });
+
+            return webpartsAdded.promise();
+        },
+
+        /*
+           Create a group on the site collection
+           @groups { title: 'Project Managers', description: 'Members can manage project details in the system.' }
+        */
+        createGroup: function (groups) {
+            var scopes = [];
+            var groups = CIB.utilities.ensureArray(groups);
+
+            var groupsCreated = new jQuery.Deferred();
+
+            //helper.message('Setting indicies on list \'' + listTitle + '\'');
+
+            var web = hostContext.get_web();
+            var siteGropus = web.get_siteGroups();
+
+            $.each(groups, function () {
+                var group = this;
+
+                if (!group.title || !group.description)
+                    throw new Error('Group object must have title and description attributes');
+
+                helper.message('Creating group \'' + group.title + '\'.');
+
+                var scope = $.handleExceptionsScope(context, function () {
+                    var newGroup = new SP.GroupCreationInformation();
+                    newGroup.set_title(group.title);
+                    newGroup.set_description(group.description);
+                    siteGropus.add(newGroup);
+                });
+                scope.successMessage = 'Created group \'' + group.title + '\'.';
+                scopes.push(scope);
+            });
+
+            helper.executeQuery(scopes, groupsCreated);
+
+            return groupsCreated.promise();
+        },
+
+        /*
+           Registers the remote event receivers which implement the reusable event receivers pattern
+           @serviceUrl: https://application.apps.dev.echonet/Services/appeventreceiver.svc
+        */
+        registerRemoteEventReceivers: function (serviceUrl) {
+
+            var eventReceiverRegistered = new jQuery.Deferred();
+
+            helper.message('Registering event services at: ' + serviceUrl);
+
+            var soapMessage = '<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"> \
+                    <soap:Body> \
+                        <Install xmlns="http://tempuri.org/"> \
+                            <hostWebUrl>' + $.getHostWebUrl() + '</hostWebUrl> \
+                            <serviceUrl>' + serviceUrl + '</serviceUrl> \
+                        </Install> \
+                    </soap:Body> \
+                </soap:Envelope>';
+
+            $.ajax({
+                url: serviceUrl,
+                type: "POST",
+                dataType: "xml",
+                data: soapMessage,
+                contentType: "text/xml",
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("SOAPAction", "http://tempuri.org/IInstallableEventService/Install");
+                },
+                success: function (response) {
+                    helper.message('Event services at: ' + serviceUrl + ' registered.', 'success');
+                    eventReceiverRegistered.resolve();
+                },
+                error: function (xhr, status, error) {
+                    helper.message('Failed to register event receivers at: ' + serviceUrl + ' (' + error + ').', 'error');
+                    eventReceiverRegistered.reject(error);
+                }
+            });
+
+            return eventReceiverRegistered.promise();
+
+        },
+
+        /* 
+            Installs a workflow using a .workflow file definition
+            @workflowFileUrl: $.getAppWebUrl() + '/Workflows/A workflow file.workflow'
+        */
+        installWorkflowFromFile: function (workflowFileUrl) {
+
+            var workflowCreated = new jQuery.Deferred();
+            var workflowDependenciesLoaded = new jQuery.Deferred();
+
+            if (!SP.WorkflowServices) {
+                $.getScript($.getHostWebUrl() + '/_layouts/15/SP.WorkflowServices.js')
+                    .fail(function (error) {
+                        helper.message('Failed to load SP.Workflow.js or a depdency', 'error');
+                        workflowDependenciesLoaded.reject(error);
+                    })
+                    .done(function () {
+                        if (!SP.WorkflowServices) {
+                            helper.message('Failed to load SP.Workflow.js or a depdency', 'error');
+                            workflowDependenciesLoaded.reject(error);
+                        }
+                        else {
+                            workflowDependenciesLoaded.resolve();
+                        }
+                    });
+            }
+            else {
+                workflowDependenciesLoaded.resolve();
+            }
+
+            workflowDependenciesLoaded.promise().done(function () {
+                $.get(workflowFileUrl)
+                    .fail(function (error) {
+                        helper.message('Failed to get workflow data from url: ' + workflowFileUrl, 'error');
+                        workflowCreated.reject(error);
+                    })
+                    .done(function (workflow) {
+                        if (typeof workflow === 'string') {
+                            try {
+                                workflow = JSON.parse(workflow);
+                            }
+                            catch (error) {
+                                helper.message('Failed to parse workflow from url: ' + workflowFileUrl, 'error');
+                                workflowCreated.reject(error);
+                                return;
+                            }
+                        }
+
+                        CIB.installer.installWorkflow(workflow)
+                            .fail(function (error) {
+                                helper.message('Failed to install workflow from url: ' + workflowFileUrl, 'error');
+                                workflowCreated.reject(error);
+                            })
+                            .done(function () {
+                                workflowCreated.resolve();
+                            });
+                    });
+            });
+
+            return workflowCreated.promise();
+
+        },
+
+        /*
+           Creates a workflow definition on the host web
+           [Internal use only]
+        */
+        installWorkflow: function (workflow) {
+
+            var workflowDeifnitionCreated = new jQuery.Deferred();
+
+            if (!$.isInternetExplorer()) {
+                helper.message('The installWorkflow method is only supported in internet explorer, the method will run but errors may occur.', 'info');
+            }
+
+            if (!workflow.definition || !workflow.associations)
+                throw new Error('Workflow data must have "definition" and "associations" properties set');
+
+            if (!workflow.definition.displayName || !workflow.definition.xaml)
+                throw new Error('Workflow definition must have at least "displayName" and "xaml" properties set');
+
+            var workflowData = workflow.definition;
+            var associations = CIB.utilities.ensureArray(workflow.associations);
+            var collateral = CIB.utilities.ensureArray(workflow.collateral);
+
+            helper.message('Creating workflow definition \'' + workflowData.displayName + '\'');
+
+            var workflowWebContext = new SP.ClientContext(jQuery.getHostWebUrl());
+
+            var web = workflowWebContext.get_web();
+            var site = workflowWebContext.get_site();
+
+            var workflowServicesManager;
+            var workflowDeployment;
+            var workflowSubscription;
+
+            var workflowDefinitionId;
+            var associationIds = {};
+
+            var handleSharePointFail = function (message) {
+                helper.message(message, 'error');
+                workflowDeifnitionCreated.reject(message);
+            };
+
+            workflowServicesManager = new SP.WorkflowServices.WorkflowServicesManager.newObject(workflowWebContext, workflowWebContext.get_web());
+            workflowWebContext.load(web, 'Id', 'Url', 'ServerRelativeUrl');
+            workflowWebContext.load(site, 'Id');
+            workflowWebContext.load(workflowServicesManager);
+            workflowWebContext.executeQueryAsyncPromise()
+                .fail(handleSharePointFail)
+                .done(function () {
+                    workflowDeployment = workflowServicesManager.getWorkflowDeploymentService();
+                    workflowSubscription = workflowServicesManager.getWorkflowSubscriptionService();
+                    workflowWebContext.load(workflowDeployment);
+                    workflowWebContext.load(workflowSubscription);
+                    $.when(CIB.installer.getListIds(), workflowWebContext.executeQueryAsyncPromise())
+                        .fail(handleSharePointFail)
+                        .done(checkExistingWorkflows);
+                });
+
+            var checkExistingWorkflows = function (listIds) {
+                var workflowDefinitions = workflowDeployment.enumerateDefinitions(false);
+                workflowWebContext.load(workflowDefinitions, 'Include(DisplayName, Id)');
+                workflowWebContext.executeQueryAsyncPromise()
+                    .fail(handleSharePointFail)
+                    .done(function () {
+                        var workflowDeifnitionIdLoaded = new jQuery.Deferred();
+                        var workflowDefinition;
+                        var workflowEnumerator = workflowDefinitions.getEnumerator();
+                        while (workflowEnumerator.moveNext()) {
+                            var workflow = workflowEnumerator.get_current();
+                            if (workflow.get_displayName() === workflowData.displayName) {
+                                helper.message('Workflow "' + workflowData.displayName + '" already exsists, it will be overwritten');
+                                workflowDefinition = workflow;
+                                workflowDeifnitionIdLoaded.resolve();
+                                break;
+                            }
+                        }
+                        if (!workflowDefinition) {
+                            // Save a placeholder workflow to get a persistant id
+                            workflowDefinition = new SP.WorkflowServices.WorkflowDefinition.newObject(workflowWebContext, workflowWebContext.get_web());
+                            workflowDefinition.set_displayName(workflowData.displayName);
+                            workflowDefinition.set_xaml("<Activity mc:Ignorable=\"mwaw\" x:Class=\"Workflow deployment in progress.MTW\" xmlns=\"http://schemas.microsoft.com/netfx/2009/xaml/activities\" xmlns:local=\"clr-namespace:Microsoft.SharePoint.WorkflowServices.Activities\" xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" xmlns:mwaw=\"clr-namespace:Microsoft.Web.Authoring.Workflow;assembly=Microsoft.Web.Authoring\" xmlns:scg=\"clr-namespace:System.Collections.Generic;assembly=mscorlib\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\"><Flowchart StartNode=\"{x:Reference __ReferenceID0}\"><FlowStep x:Name=\"__ReferenceID0\"><mwaw:SPDesignerXamlWriter.CustomAttributes><scg:Dictionary x:TypeArguments=\"x:String, x:String\"><x:String x:Key=\"Next\">4294967294</x:String></scg:Dictionary></mwaw:SPDesignerXamlWriter.CustomAttributes><Sequence><mwaw:SPDesignerXamlWriter.CustomAttributes><scg:Dictionary x:TypeArguments=\"x:String, x:String\"><x:String x:Key=\"StageAttribute\">StageContainer-8EDBFE6D-DA0D-42F6-A806-F5807380DA4D</x:String></scg:Dictionary></mwaw:SPDesignerXamlWriter.CustomAttributes><local:SetWorkflowStatus Disabled=\"False\" Status=\"Stage 1\"><mwaw:SPDesignerXamlWriter.CustomAttributes><scg:Dictionary x:TypeArguments=\"x:String, x:String\"><x:String x:Key=\"StageAttribute\">StageHeader-7FE15537-DFDB-4198-ABFA-8AF8B9D669AE</x:String></scg:Dictionary></mwaw:SPDesignerXamlWriter.CustomAttributes></local:SetWorkflowStatus><Sequence DisplayName=\"Stage 1\" /><Sequence><mwaw:SPDesignerXamlWriter.CustomAttributes><scg:Dictionary x:TypeArguments=\"x:String, x:String\"><x:String x:Key=\"StageAttribute\">StageFooter-3A59FA7C-C493-47A1-8F8B-1F481143EB08</x:String></scg:Dictionary></mwaw:SPDesignerXamlWriter.CustomAttributes></Sequence></Sequence></FlowStep></Flowchart></Activity>");
+                            workflowDeployment.saveDefinition(workflowDefinition);
+                            workflowWebContext.load(workflowDefinition, 'Id');
+                            workflowWebContext.executeQueryAsyncPromise()
+                                .fail(handleSharePointFail)
+                                .done(function () {
+                                    workflowDeifnitionIdLoaded.resolve();
+                                });
+                        }
+                        workflowDeifnitionIdLoaded.promise().done(function () {
+                            createWithDefinition(workflowDefinition, listIds);
+                        });
+                    });
+            };
+
+            var createWithDefinition = function (workflowDefinition, listIds) {
+
+                var workflowAssociations = {};
+                workflowDefinitionId = workflowDefinition.get_id();
+
+                var hasErrors = updateWorkflowTokens(workflowData);
+
+                if (hasErrors) {
+                    handleSharePointFail('Failed to replace one or more tokens in the workflow. See installer logs for details');
+                    return;
+                }
+
+                CIB.utilities.deserialiseSharePointObject(JSON.stringify(workflowData), workflowDefinition);
+
+                if (workflowData['properties']) {
+                    var properties = workflowData['properties'];
+                    for (var property in properties) {
+                        workflowDefinition.setProperty(property, properties[property]);
+                    }
+                }
+
+                var createCollateral = function () {
+                    var collateralCreated = new jQuery.Deferred();
+
+                    if (collateral.length > 0) {
+                        var collateralCounter = 0;
+                        collateral.forEach(function (collateralFile, index) {
+
+                            var hasErrors = updateWorkflowTokens(collateralFile);
+
+                            if (hasErrors) {
+                                handleSharePointFail('Failed to replace one or more tokens in a workflow form');
+                                collateralCreated.reject();
+                                return false;
+                            }
+
+                            helper.message('Uploading workflow file ' + collateralFile.url);
+
+                            var url = ($.getServerRealtiveHostWebUrl() + '/' + collateralFile.url).replace('//', '/');
+                            var urlParts = url.split('/');
+
+                            var createInfo = new SP.FileCreationInformation();
+                            createInfo.set_content(new SP.Base64EncodedByteArray());
+                            for (var i = 0; i < collateralFile.contents.length; i++) {
+                                createInfo.get_content().append(collateralFile.contents.charCodeAt(i));
+                            }
+                            createInfo.set_overwrite(true);
+
+                            createInfo.set_url(urlParts[urlParts.length - 1]);
+                            urlParts.splice(urlParts.length - 1, 1);
+                            var files = workflowWebContext.get_web().getFolderByServerRelativeUrl(urlParts.join('/')).get_files();
+                            var newFile = files.add(createInfo);
+                            workflowWebContext.executeQueryAsyncPromise()
+                                .fail(handleSharePointFail)
+                                .done(function () {
+                                    if (++collateralCounter == collateral.length) {
+                                        collateralCreated.resolve();
+                                    }
+                                });
+                        });
+                    }
+                    else {
+                        collateralCreated.resolve();
+                    }
+
+                    return collateralCreated.promise();
+                };
+
+                workflowDefinition.set_draftVersion('');
+                workflowDeployment.saveDefinition(workflowDefinition);
+                workflowWebContext.load(workflowDefinition, 'Id');
+
+                $.when(createCollateral(), workflowWebContext.executeQueryAsyncPromise())
+                    .fail(handleSharePointFail)
+                    .done(function () {
+
+                        workflowDeployment.publishDefinition(workflowDefinition.get_id());
+
+                        var existingAssociations = workflowSubscription.enumerateSubscriptionsByDefinition(workflowDefinitionId);
+
+                        workflowWebContext.load(existingAssociations);
+
+                        var validListIds = [];
+
+                        for (var list in listIds)
+                            validListIds.push(listIds[list].toString().toLowerCase());
+
+                        workflowWebContext.executeQueryAsyncPromise()
+                            .fail(handleSharePointFail)
+                            .done(function () {
+
+                                var workflowAssociations = {};
+                                var duplicateAssociations = false;
+                                var subscriptionEnumerator = existingAssociations.getEnumerator();
+                                while (subscriptionEnumerator.moveNext()) {
+                                    var subscription = subscriptionEnumerator.get_current();
+                                    if (workflowDefinition.get_restrictToType() == 'List') {
+                                        var associationListId = subscription.get_eventSourceId().toString();
+                                        if (validListIds.indexOf(associationListId.toLowerCase()) < 0) {
+                                            // Orphan association, this happens when the list has been deleted
+                                            continue;
+                                        }
+                                    }
+                                    if (workflowAssociations[subscription.get_name()]) {
+                                        handleSharePointFail('The workflow definition ' + workflowData.displayName + ' has more than one associaiton named ' +
+                                            subscription.get_name());
+                                        duplicateAssociations = true;
+                                        break;
+                                    }
+                                    workflowAssociations[subscription.get_name()] = subscription;
+                                }
+
+                                if (duplicateAssociations)
+                                    return;
+
+                                var scopes = [];
+                                var hasErrors = false;
+
+                                var publishedCounter = 0;
+                                var statusColumnsCreated = new jQuery.Deferred();
+
+                                $.each(associations, function (index, association) {
+
+                                    hasErrors |= updateWorkflowTokens(association);
+
+                                    if (hasErrors) {
+                                        handleSharePointFail('Failed to replace one or more tokens in the association ' + association.name +
+                                            '. See installer logs for details');
+                                        return false;
+                                    }
+
+                                    var associationList = workflowWebContext.get_web().get_lists().getById(association['eventSourceId']);
+                                    var listFields = associationList.get_fields();
+                                    var statusFieldName = association['statusFieldName'];
+
+                                    workflowWebContext.load(listFields, 'Include(InternalName)');
+                                    workflowWebContext.executeQueryAsyncPromise()
+                                       .fail(handleSharePointFail)
+                                       .done(function () {
+
+                                           var createField = true;
+                                           var listFieldsEnumerator = listFields.getEnumerator();
+                                           while (listFieldsEnumerator.moveNext()) {
+                                               var listField = listFieldsEnumerator.get_current();
+                                               if (listField.get_internalName() === statusFieldName) {
+                                                   createField = false;
+                                                   break;
+                                               }
+                                           }
+
+                                           if (createField) {
+                                               var fieldXml = "<Field Type='URL' DisplayName='" + statusFieldName + "' Name='" + statusFieldName + "' />";
+                                               var field = listFields.addFieldAsXml(fieldXml, true, SP.AddFieldOptions.addToNoContentType);
+
+                                               var statusFieldDisplayName = unescape(statusFieldName.replace(/_x/g, '%u').replace(/_/g, ''));
+
+                                               field.set_title(statusFieldDisplayName);
+                                               field.update();
+                                           }
+
+                                           if (++publishedCounter === associations.length) {
+                                               statusColumnsCreated.resolve();
+                                           }
+
+                                       });
+                                });
+
+                                statusColumnsCreated.promise().done(function () {
+
+                                    $.each(associations, function (index, association) {
+
+                                        helper.message('Creating workflow association ' + association.name);
+
+                                        var workflowAssociation = workflowAssociations[association.name];
+
+                                        if (!workflowAssociation) {
+                                            workflowAssociation = new SP.WorkflowServices.WorkflowSubscription.newObject(workflowWebContext);
+                                        }
+
+                                        CIB.utilities.deserialiseSharePointObject(JSON.stringify(association), workflowAssociation);
+
+                                        if (association['properties']) {
+                                            var properties = association['properties'];
+
+                                            for (var property in properties) {
+                                                workflowAssociation.setProperty(property, properties[property]);
+                                            }
+                                        }
+
+                                        if (workflowData.restrictToType == 'List') {
+                                            workflowAssociation.setProperty('StatusColumnCreated', '1');
+                                            workflowSubscription.publishSubscriptionForList(workflowAssociation, association['eventSourceId']);
+                                        }
+                                        else if (workflowData.restrictToType == 'Site')
+                                            workflowSubscription.publishSubscription(workflowAssociation);
+                                        else {
+                                            handleSharePointFail('Cannot create association as the restrictToType ' + workflowData.get_restrictToType() + ' was not recognised');
+                                            return false;
+                                        }
+                                    });
+
+                                    if (hasErrors)
+                                        return;
+
+                                    workflowWebContext.executeQueryAsyncPromise()
+                                        .fail(handleSharePointFail)
+                                        .done(function () {
+                                            helper.message('Workflow definition ' + workflowData.displayName + ' created', 'success');
+                                            workflowDeifnitionCreated.resolve();
+                                        });
+                                });
+                            });
+                    });
+            };
+
+            var updateWorkflowTokens = function (object) {
+                var hasErrors = false;
+                var tokens = new RegExp('\{\\$([^\:]*)\:([^\}]*)\}', 'gi');
+
+                var updateTokens = function (object, depth) {
+                    for (var property in object) {
+                        if (typeof object[property] == 'string') {
+                            if (object[property]) {
+                                object[property] = object[property].replace(tokens, function (x, tokenType, tokenName) {
+                                    if (tokenType === 'List') {
+                                        if (listIds[tokenName])
+                                            return listIds[tokenName];
+                                    }
+                                    else if (tokenType === 'Web') {
+                                        if (tokenName === '$')
+                                            return web.get_id().toString();
+                                        else if (tokenName === '%')
+                                            return web.get_url().toString();
+                                        else if (tokenName === '^')
+                                            return web.get_serverRelativeUrl();
+                                    }
+                                    else if (tokenType === 'Site') {
+                                        if (tokenName === '$')
+                                            return site.get_id().toString();
+                                    }
+                                    else if (tokenType === 'Definition') {
+                                        if (tokenName === '$')
+                                            return workflowDefinitionId.toString();
+                                        else if (tokenName === '&')
+                                            return workflowDefinitionId.toString().replace(/\-/gi, '');
+                                    }
+                                    hasErrors = true;
+                                    var errorMessage = 'Failed to replace token in workflow, a ' + tokenType + ' cannot be found with the name: ' + tokenName;
+                                    helper.message(errorMessage, 'error');
+                                    return x;
+                                });
+                            }
+                        } else if (depth < 3) {
+                            updateTokens(object[property], (depth + 1));
+                        }
+                    }
+                };
+                updateTokens(object, 0);
+                return hasErrors;
+            };
+            return workflowDeifnitionCreated.promise();
+        },
+
+        /*
+           Adds an accordion group to a list
+           listTitle: 'CIB List'
+           groupTitle: 'Accordion Headeing'
+           fields: ['Title']
+        */
+        ensureAccordianGroup: function (listTitle, groupTitle, fields) {
+
+            var accordionGroupCreated = new jQuery.Deferred();
+            var fields = CIB.utilities.ensureArray(fields);
+
+            if (!listTitle || !groupTitle || !fields || fields.length == 0)
+                throw new Error('List title, group title and fields must be set');
+
+            helper.message('Creating accordion group \'' + groupTitle + '\' on list \'' + listTitle + '\'');
+
+            var handleSharePointFail = function (message) {
+                helper.message(message, 'error');
+                accordionGroupCreated.reject(message);
+            };
+
+            var web = hostContext.get_web();
+            var list = web.get_lists().getByTitle(listTitle);
+            var rootFolder = list.get_rootFolder();
+            var properties = rootFolder.get_properties();
+            var listFields = {};
+            $.each(fields, function (index, field) {
+                listFields[field] = list.get_fields().getByInternalNameOrTitle(field);
+                context.load(listFields[field], 'InternalName', 'Title', 'Required');
+            });
+            context.load(properties);
+            context.executeQueryAsyncPromise()
+                .fail(handleSharePointFail)
+                .done(function () {
+                    var accordionSettingsValue = properties.get_fieldValues()['CIBListFormAccordionSetting'];
+                    var parser = new DOMParser();
+                    if (!accordionSettingsValue) {
+                        accordionSettingsValue = '<?xml version="1.0" encoding="utf-16"?>\
+                            <AccordionSettings xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\
+                                <Groups></Groups>\
+                            </AccordionSettings>';
+                    }
+                    var accordionSettings = parser.parseFromString(accordionSettingsValue, "text/xml");
+                    // Check if group already exists
+                    var accordionGroup;
+                    $.each(accordionSettings.getElementsByTagName('Group'), function (index, group) {
+                        var name = group.getElementsByTagName('Name')[0];
+                        if (name.textContent == groupTitle) {
+                            accordionGroup = group;
+                            return false;
+                        }
+                    });
+                    if (!accordionGroup) {
+                        var groups = accordionSettings.getElementsByTagName('Groups')[0];
+                        var newGroup = accordionSettings.createElement("Group");
+                        var fieldsElement = accordionSettings.createElement("Fields");
+                        var groupName = accordionSettings.createElement("Name");
+                        var groupOrder = accordionSettings.createElement("Order");
+                        groupName.appendChild(accordionSettings.createTextNode(groupTitle));
+                        groupOrder.appendChild(accordionSettings.createTextNode(groups.childElementCount + 1));
+                        newGroup.appendChild(fieldsElement);
+                        newGroup.appendChild(groupName);
+                        newGroup.appendChild(groupOrder);
+                        groups.appendChild(newGroup);
+                        accordionGroup = newGroup;
+                    }
+                    var fieldsPresent = 0;
+                    var fieldsUpdated = false;
+                    $.each(fields, function (index, field) {
+                        var listField = listFields[field];
+                        var internalName = listField.get_internalName();
+                        var displayName = listField.get_title();
+                        var requiredValue = listField.get_required().toString().toLowerCase();
+
+                        var groupFields = accordionGroup.getElementsByTagName('Fields')[0];
+                        // Check field already exists
+                        var exists = false;
+                        $.each(groupFields.getElementsByTagName('Field'), function (index, field) {
+                            if (field.getElementsByTagName('InteralName')[0].textContent == internalName) {
+                                exists = true;
+                                fieldsPresent++;
+                                helper.message(displayName + ' is already present in accordion group ' + groupTitle, 'info');
+                                return false;
+                            }
+                        });
+                        var existsElsewhere = false;
+                        if (!exists) {
+                            // Check the field is not already in another group as this would cause errors
+                            $.each(accordionSettings.getElementsByTagName('Field'), function (index, field) {
+                                if (field.getElementsByTagName('InteralName')[0].textContent == internalName) {
+                                    existsElsewhere = true;
+                                    return false;
+                                }
+                            });
+                        }
+                        if (existsElsewhere) {
+                            handleSharePointFail(displayName + ' is already present in a different accordion group');
+                            fieldsUpdated = false;
+                            return false;
+                        }
+                        else if (!exists) {
+                            var fieldElement = accordionSettings.createElement('Field');
+                            var displayNameElement = accordionSettings.createElement('DisplayName');
+                            var internalNameElement = accordionSettings.createElement('InteralName');
+                            var requiredElement = accordionSettings.createElement('Required');
+                            displayNameElement.appendChild(accordionSettings.createTextNode(displayName));
+                            internalNameElement.appendChild(accordionSettings.createTextNode(internalName));
+                            requiredElement.appendChild(accordionSettings.createTextNode(requiredValue));
+                            fieldElement.appendChild(displayNameElement);
+                            fieldElement.appendChild(internalNameElement);
+                            fieldElement.appendChild(requiredElement);
+                            groupFields.appendChild(fieldElement);
+                            fieldsUpdated = true;
+                        }
+                    });
+                    if (fieldsUpdated) {
+                        // Update xml in property bag
+                        var serializer = new XMLSerializer();
+                        var accordionXml = serializer.serializeToString(accordionSettings);
+                        // Add namespaces in as text, the namespaces aren't used in the document so they can't be added using the api
+                        accordionXml = accordionXml.replace('<AccordionSettings>',
+                            '<AccordionSettings xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">');
+                        accordionXml = '<?xml version="1.0" encoding="utf-16"?>' + accordionXml;
+                        properties.set_item('CIBListFormAccordionSetting', accordionXml);
+                        rootFolder.update();
+                        context.executeQueryAsyncPromise()
+                            .fail(handleSharePointFail)
+                            .done(function () {
+                                helper.message('Accordion group \'' + groupTitle + '\' added to list \'' + listTitle + '\'', 'success');
+                                accordionGroupCreated.resolve();
+                            });
+                    }
+                    else if (fieldsPresent == fields.length) {
+                        accordionGroupCreated.resolve();
+                    }
+                });
+
+            return accordionGroupCreated.promise();
+        },
+
+        /*
+          Updates the CIB display settings for a list
+          listTitle: 'CIB List'
+          displaySettings: [{ field: 'Title', form: CIB.installer.displaySettingForm.editForm, display: CIB.installer.displaySettings.whereInGroup, group: 'Approvers' }]
+       */
+
+        displaySettings: {
+            always: 'always', never: 'never', whereInGroup: 'whereInGroup', whereNotInGroup: 'whereNotInGroup'
+        },
+
+        displaySettingForm: {
+            displayForm: 'Display', editForm: 'Edit', newForm: 'New'
+        },
+
+        displayMode:{
+            write: 'writable', read: 'read-only'
+        },
+
+        updateDisplaySettings: function (listTitle, displaySettings) {
+
+            var installer = CIB.installer;
+
+            var displaySettingsUpdates = new jQuery.Deferred();
+            var displaySettings = CIB.utilities.ensureArray(displaySettings);
+
+            if (!listTitle || !displaySettings || displaySettings.length == 0)
+                throw new Error('List title, and display settings must be set');
+
+            $.each(displaySettings, function (index, setting) {
+                if (!setting.field || !setting.form || !setting.display)
+                    throw new Error('Field, Form and Display properties must be set on the field');
+                if (setting.display == installer.displaySettings.whereInGroup || setting.display == installer.displaySettings.whereNotInGroup) {
+                    if (!setting.group)
+                        throw new Error('Group must be set on the field for where display settings');
+                }
+                else if (Array.isArray(setting.display)) {
+                    $.each(setting.display, function (index, displaySetting) {
+                        if (!displaySetting.condition || !displaySetting.groupName || !displaySetting.mode)
+                            throw new Error('Condition,Group name and Mode must be set on field for where display settings');
+                    })
+                    if (!setting.logic)
+                        throw new Error('logic condition must be set on multiple group where field');
+                }
+            });
+
+            helper.message('Updating display settings on list \'' + listTitle + '\'');
+
+            var handleSharePointFail = function (message) {
+                helper.message(message, 'error');
+                displaySettingsUpdates.reject(message);
+            };
+
+            var web = hostContext.get_web();
+            var properties = web.get_allProperties();
+            var list = web.get_lists().getByTitle(listTitle);
+            context.load(list, 'Id');
+            context.load(properties);
+            context.executeQueryAsyncPromise()
+                .fail(handleSharePointFail)
+                .done(function () {
+                    var listId = list.get_id().toString();
+                    var propertyName = ('DisplaySetting' + listId).toLowerCase();
+                    var displaySettingItems = properties.get_fieldValues()[propertyName];
+                    if (displaySettingItems) {
+                        displaySettingItems = displaySettingItems.split('#');
+                    }
+                    else {
+                        displaySettingItems = [];
+                    }
+
+                    displaySettingItems = displaySettingItems.filter(function (setting) { return Boolean(setting); });
+                    displaySettingItems = displaySettingItems.map(function (setting) { return setting.split('|'); });
+
+                    $.each(displaySettings, function (index, displaySetting) {
+                        // Check for existing field
+                        var existingIndex = -1;
+                        for (var i = 0; i < displaySettingItems.length; i++) {
+                            if (displaySettingItems[i][0] === displaySetting.field) {
+                                if (displaySettingItems[i][1] === displaySetting.form) {
+                                    existingIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+
+                        var settingValue = displaySetting.display;
+                        if (!Array.isArray(settingValue)) {
+                            //Handle single group condition
+                            if (settingValue === installer.displaySettings.whereInGroup || settingValue === installer.displaySettings.whereNotInGroup)
+                                settingValue = 'where';
+                            var settingConfig = settingValue + ';[Me];';
+                            if (displaySetting.display === installer.displaySettings.whereNotInGroup) settingConfig += 'IsNotInGroup;'; else settingConfig += 'IsInGroup;';
+                            if (displaySetting.group) {
+                                    settingConfig += displaySetting.group + ';';
+                                    settingConfig += ';writable;~AND';
+                            }
+                            else 
+                                settingConfig += 'Approvers;writable;~AND';
+                        }
+                        else {
+                            //Handle muliple group conditions
+                            var settingConfig = 'where';
+                            $.each(settingValue, function (idx, group) {
+                                settingConfig += ';[Me];';
+                                if (group.condition === installer.displaySettings.whereNotInGroup) settingConfig += 'IsNotInGroup;'; else settingConfig += 'IsInGroup;';
+                                settingConfig += group.groupName + ';' + group.mode;
+                                if(idx !== settingValue.length - 1)   settingConfig += ';$where';
+                            })
+                            if (displaySetting.logic)
+                                settingConfig += ';~' + displaySetting.logic;
+                        }
+                        if (existingIndex >= 0) {
+                            displaySettingItems[existingIndex][0] = displaySetting.field;
+                            displaySettingItems[existingIndex][1] = displaySetting.form;
+                            displaySettingItems[existingIndex][2] = settingConfig;
+                        }
+                        else {
+                            displaySettingItems.push([displaySetting.field, displaySetting.form, settingConfig]);
+                            // Ensure default values are present for all form display modes
+
+                            var displayModeSettings = {};
+                            for (var i = 0; i < displaySettingItems.length; i++) {
+                                if (displaySettingItems[i][0] === displaySetting.field) {
+                                    displayModeSettings[displaySettingItems[i][1]] = true;
+                                }
+                            }
+
+                            for (var mode in installer.displaySettingForm) {
+                                mode = installer.displaySettingForm[mode];
+                                if (!displayModeSettings[mode]) {
+                                    displaySettingItems.push([displaySetting.field, mode, installer.displaySettings.always + ';[Me];IsInGroup;Approvers;writable;~AND']);
+                                }
+                            }
+                        }
+                    });
+
+                    for (var i = 0; i < displaySettingItems.length; i++)
+                        displaySettingItems[i] = displaySettingItems[i].join('|');
+
+                    var updatedValue = displaySettingItems.join('#') + '#';
+
+                    properties.set_item(propertyName, updatedValue);
+                    web.update();
+                    context.executeQueryAsyncPromise()
+                        .fail(handleSharePointFail)
+                        .done(function () {
+                            helper.message('Display settings updated on list \'' + listTitle + '\'', 'success');
+                            displaySettingsUpdates.resolve();
+                        });
+
+                });
+
+            return displaySettingsUpdates.promise();
+        },
+
+        /*
+           Updates properties on a pre-existing webpart, such as updating the JSLink on a list form
+           @webPartProperties { 
+                file: '/teams/sitecolleciton/documents/forms/editForm.aspx' 
+                title: 'WebPart title', 
+                properties: { 'JSLink': '~/sitecollection/Style Library/customer/customization.js' }
+           }
+        */
+        updateWebPartProperties: function (webPartProperties) {
+            var scopes = [];
+            var webPartProperties = CIB.utilities.ensureArray(webPartProperties);
+
+            var webPartsUpdated = new jQuery.Deferred();
+
+            var handleSharePointFail = function (message) {
+                helper.message(message, 'error');
+                webPartsUpdated.reject(message);
+            };
+
+            var web = hostContext.get_web();
+            var updateCount = 0;
+
+            $.each(webPartProperties, function () {
+                var webPartDetails = this;
+
+                if (!webPartDetails.title || !webPartDetails.file || !webPartDetails.properties)
+                    throw new Error('web part must have title, file and properties attributes set');
+
+                helper.message('Updating web part \'' + webPartDetails.title + '\'.');
+
+                var file = web.getFileByServerRelativeUrl(webPartDetails.file);
+                var webPartManager = file.getLimitedWebPartManager(SP.WebParts.PersonalizationScope.shared);
+                var webparts = webPartManager.get_webParts();
+                context.load(webparts, 'Include(WebPart.Title, WebPart.Properties)');
+                context.executeQueryAsyncPromise()
+                    .fail(handleSharePointFail)
+                    .done(function () {
+                        var webPartUpdated = false;
+                        var webPartsEnumerator = webparts.getEnumerator();
+                        while (webPartsEnumerator.moveNext()) {
+                            var webpartDefinition = webPartsEnumerator.get_current();
+                            var webpart = webpartDefinition.get_webPart();
+                            if (webpart.get_title() === webPartDetails.title || webPartDetails.title === '*') {
+                                webPartUpdated = true;
+                                for (var propertyName in webPartDetails.properties) {
+                                    var propertyValue = webPartDetails.properties[propertyName];
+                                    webpart.get_properties().set_item(propertyName, propertyValue);
+                                }
+                                webpartDefinition.saveWebPartChanges();
+                            }
+                        }
+                        if (webPartUpdated) {
+                            context.executeQueryAsyncPromise()
+                            .fail(handleSharePointFail)
+                            .done(function () {
+                                helper.message('Updated properties for web part \'' + webPartDetails.title + '\'.', 'success');
+                                if (++updateCount == webPartProperties.length)
+                                    webPartsUpdated.resolve();
+                            });
+                        }
+                        else {
+                            helper.message('No web part with a title \'' + webPartDetails.title + '\' was found in file: ' + webPartDetails.file, 'info');
+                            if (++updateCount == webPartProperties.length)
+                                webPartsUpdated.resolve();
+                        }
+                    });
+
+            });
+
+            return webPartsUpdated.promise();
+        },
+
+        getContentTypeIdByName: function(contentTypeName) {
+            if (!contentTypeName)
+                throw new Error('Content Type Name cannot be null');
+
+            var contentTypeRetrieved = new jQuery.Deferred();
+            var handleSharePointFail = function (message) {
+                helper.message(message, 'error');
+                contentTypeRetrieved.reject(message);
+            };
+            helper.message("Fetching content type id for name: " + contentTypeName);
+            var contentTypeId = '';
+            var web = hostContext.get_web();
+            var contentTypeCollection = web.get_availableContentTypes();
+            context.load(contentTypeCollection, 'Include(Id, Name)');
+            context.executeQueryAsyncPromise()
+                .fail(handleSharePointFail)
+                .done(function() {
+                    var contentTypeEnumerator = contentTypeCollection.getEnumerator();
+                    while (contentTypeEnumerator.moveNext()) {
+                        var contentType = contentTypeEnumerator.get_current();
+                        if (contentType.get_name() === contentTypeName) {
+                            contentTypeId = contentType.get_id();
+                            break;
+                        }
+                    }
+                    contentTypeRetrieved.resolve(contentTypeId);
+                });
+            return contentTypeRetrieved.promise();
+        }
+
+    };
+}();
+
+// Fix for SP.Requestexecutor for binary files
+(function () {
+
+    if (!SP.RequestExecutor)
+        return;
+
+    SP.RequestExecutorInternalSharedUtility.BinaryDecode = function SP_RequestExecutorInternalSharedUtility$BinaryDecode(data) {
+        var ret = '';
+        if (data) {
+            var byteArray = new Uint8Array(data);
+            for (var i = 0; i < data.byteLength; i++) {
+                ret = ret + String.fromCharCode(byteArray[i]);
+            }
+        }
+        ;
+        return ret;
+    };
+    SP.RequestExecutorUtility.IsDefined = function SP_RequestExecutorUtility$$1(data) {
+        var nullValue = null;
+        return data === nullValue || typeof data === 'undefined' || !data.length;
+    };
+    SP.RequestExecutor.ParseHeaders = function SP_RequestExecutor$ParseHeaders(headers) {
+        if (SP.RequestExecutorUtility.IsDefined(headers)) {
+            return null;
+        }
+        var result = {};
+        var reSplit = new RegExp('\r?\n');
+        var headerArray = headers.split(reSplit);
+        for (var i = 0; i < headerArray.length; i++) {
+            var currentHeader = headerArray[i];
+            if (!SP.RequestExecutorUtility.IsDefined(currentHeader)) {
+                var splitPos = currentHeader.indexOf(':');
+                if (splitPos > 0) {
+                    var key = currentHeader.substr(0, splitPos);
+                    var value = currentHeader.substr(splitPos + 1);
+                    key = SP.RequestExecutorNative.trim(key);
+                    value = SP.RequestExecutorNative.trim(value);
+                    result[key.toUpperCase()] = value;
+                }
+            }
+        }
+        return result;
+    };
+    SP.RequestExecutor.internalProcessXMLHttpRequestOnreadystatechange = function SP_RequestExecutor$internalProcessXMLHttpRequestOnreadystatechange(xhr, requestInfo, timeoutId) {
+        if (xhr.readyState === 4) {
+            if (timeoutId) {
+                window.clearTimeout(timeoutId);
+            }
+            xhr.onreadystatechange = SP.RequestExecutorNative.emptyCallback;
+            var responseInfo = new SP.ResponseInfo();
+            responseInfo.state = requestInfo.state;
+            responseInfo.responseAvailable = true;
+            if (requestInfo.binaryStringResponseBody) {
+                responseInfo.body = SP.RequestExecutorInternalSharedUtility.BinaryDecode(xhr.response);
+            }
+            else {
+                responseInfo.body = xhr.responseText;
+            }
+            responseInfo.statusCode = xhr.status;
+            responseInfo.statusText = xhr.statusText;
+            responseInfo.contentType = xhr.getResponseHeader('content-type');
+            responseInfo.allResponseHeaders = xhr.getAllResponseHeaders();
+            responseInfo.headers = SP.RequestExecutor.ParseHeaders(responseInfo.allResponseHeaders);
+            if (xhr.status >= 200 && xhr.status < 300 || xhr.status === 1223) {
+                if (requestInfo.success) {
+                    requestInfo.success(responseInfo);
+                }
+            }
+            else {
+                var error = SP.RequestExecutorErrors.httpError;
+                var statusText = xhr.statusText;
+                if (requestInfo.error) {
+                    requestInfo.error(responseInfo, error, statusText);
+                }
+            }
+        }
+    };
+
+
+
+})();

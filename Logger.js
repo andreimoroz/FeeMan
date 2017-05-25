@@ -1,1 +1,220 @@
-"use strict";var CIB=CIB||{};window.console&&console.log||(console={log:function(){},debug:function(){},info:function(){},warn:function(){},error:function(){}});CIB.logging=function(){window.onerror=function(n,t,i){CIB.logging.logError("Unhandled JavaScript Error",n,"Line: "+i+"\r\n"+t)};var t=function(){for(var r=$.getServerHostUrl(),n=r.replace("http://","").replace("https://","").split("."),i="",t=0;t<n.length;t++)i+=t==0?n[1]==="dev"?"logging.apps":n[0]==="ihc"?"logging.sharepoint-ihc":n[0]==="my-uat"?"logging.sharepoint-uat":n[1]==="staging"?"logging.sharepoint":"logging.sharepoint":n[t],t<n.length-1&&(i+=".");return i+="/Services/Logger.svc/LogError",r.split(":")[0]+"://"+i}(),n=function(){for(var r=$.getServerHostUrl(),n=r.replace("http://","").replace("https://","").split("."),i="",t=0;t<n.length;t++)i+=t==0?n[1]==="dev"?"logging.apps":n[0]==="ihc"?"logging.sharepoint-ihc":n[0]==="my-uat"?"logging.sharepoint-uat":n[1]==="staging"?"logging.sharepoint":"logging.sharepoint":n[t],t<n.length-1&&(i+=".");return i+="/Services/Logger.svc/LogEvent",r.split(":")[0]+"://"+i}();return{applicationName:"",logError:function(n,i,r){$.support.cors=!0;CIB.logging.applicationName||(CIB.logging.applicationName=typeof _spPageContextInfo!="undefined"&&_spPageContextInfo&&_spPageContextInfo.webTitle?_spPageContextInfo.webTitle:$.getServerRealtiveHostWebUrl());console&&(console.log("Logging error for: "+CIB.logging.applicationName),console.log(n+": "+i));$.ajax({type:"POST",crossDomain:!0,xhrFields:{withCredentials:!0},dataType:"json",contentType:"application/json",url:t,data:JSON.stringify({Application:CIB.logging.applicationName,Category:n,Message:i,StackTrace:r?r:window.location.href})}).fail(CIB.logging.logErrorFailed)},logEvent:function(t,i,r){$.support.cors=!0;CIB.logging.applicationName||(CIB.logging.applicationName=typeof _spPageContextInfo!="undefined"&&_spPageContextInfo&&_spPageContextInfo.webTitle?_spPageContextInfo.webTitle:$.getServerRealtiveHostWebUrl());console&&(console.log("Logging error for: "+CIB.logging.applicationName),console.log("Event type: : "+i),console.log("XML data: : "+r));$.ajax({type:"POST",crossDomain:!0,xhrFields:{withCredentials:!0},dataType:"json",contentType:"application/json",url:n,data:JSON.stringify({Application:t,EventType:i,XmlData:r})}).fail(CIB.logging.logErrorFailed)},logEventAsyncPromise:function(t,i,r){var u=new jQuery.Deferred;return $.support.cors=!0,CIB.logging.applicationName||(CIB.logging.applicationName=typeof _spPageContextInfo!="undefined"&&_spPageContextInfo&&_spPageContextInfo.webTitle?_spPageContextInfo.webTitle:$.getServerRealtiveHostWebUrl()),console&&(console.log("Logging error for: "+CIB.logging.applicationName),console.log("Event type: : "+i),console.log("XML data: : "+r)),$.ajax({type:"POST",crossDomain:!0,xhrFields:{withCredentials:!0},dataType:"json",contentType:"application/json",url:n,data:JSON.stringify({Application:t,EventType:i,XmlData:r})}).done(function(n){u.resolve(n)}).fail(function(n,t){CIB.logging.logErrorFailed(n,t);u.reject(n.statusText)}),u.promise()},logErrorFailed:function(n){console&&console.log("Failed to send error to logging service: "+n.statusText)}}}()
+﻿'use strict';
+
+/*
+
+    Logger.js
+    Provides a logging framework for javascript errors
+
+*/
+
+var CIB = CIB || {};
+
+if (!(window.console && console.log)) {
+    console = {
+        log: function () { },
+        debug: function () { },
+        info: function () { },
+        warn: function () { },
+        error: function () { }
+    };
+}
+
+CIB.logging = function () {
+
+    window.onerror = function (errorMsg, url, lineNumber) {
+        CIB.logging.logError('Unhandled JavaScript Error', errorMsg, 'Line: ' + lineNumber + '\r\n' + url);
+    };
+    var loggingService = function () {
+        var rootUrl = $.getServerHostUrl();
+        var segments = rootUrl.replace('http://', '').replace('https://', '').split('.');
+        
+        var serviceUrl = '';
+
+        for (var i = 0; i < segments.length; i++) {
+            if (i == 0) {
+                if (segments[1] === 'dev')
+                    serviceUrl += 'logging.apps';
+                else if (segments[0] === 'ihc')
+                    serviceUrl += 'logging.sharepoint-ihc';
+                else if (segments[0] === 'my-uat') 
+                    serviceUrl += 'logging.sharepoint-uat';
+                else if (segments[1] === 'staging')
+                    serviceUrl += 'logging.sharepoint';
+                else 
+                    serviceUrl += 'logging.sharepoint';
+            }
+            else {
+                serviceUrl += segments[i];
+            }
+            if (i < segments.length - 1) {
+                serviceUrl += '.';
+            }
+        }
+
+        serviceUrl += '/Services/Logger.svc/LogError';
+        return rootUrl.split(':')[0] + '://' + serviceUrl;
+    }();
+
+    var analyticsService = function () {
+        var rootUrl = $.getServerHostUrl();
+        var segments = rootUrl.replace('http://', '').replace('https://', '').split('.');
+
+        var serviceUrl = '';
+
+        for (var i = 0; i < segments.length; i++) {
+            if (i == 0) {
+                if (segments[1] === 'dev')
+                    serviceUrl += 'logging.apps';
+                else if (segments[0] === 'ihc')
+                    serviceUrl += 'logging.sharepoint-ihc';
+                else if (segments[0] === 'my-uat')
+                    serviceUrl += 'logging.sharepoint-uat';
+                else if (segments[1] === 'staging')
+                    serviceUrl += 'logging.sharepoint';
+                else
+                    serviceUrl += 'logging.sharepoint';
+            }
+            else {
+                serviceUrl += segments[i];
+            }
+            if (i < segments.length - 1) {
+                serviceUrl += '.';
+            }
+        }
+
+        serviceUrl += '/Services/Logger.svc/LogEvent';
+        return rootUrl.split(':')[0] + '://' + serviceUrl;
+    }();
+
+    return {
+
+        applicationName: '',
+
+        logError: function (category, message, stacktrace) {
+
+            $.support.cors = true;
+
+            if (!CIB.logging.applicationName) {
+                if (typeof _spPageContextInfo !== 'undefined' && _spPageContextInfo && _spPageContextInfo.webTitle) {
+                    CIB.logging.applicationName = _spPageContextInfo.webTitle;
+                }
+                else {
+                    CIB.logging.applicationName = $.getServerRealtiveHostWebUrl();
+                }
+            }
+
+            if (console) {
+                console.log('Logging error for: ' + CIB.logging.applicationName);
+                console.log(category + ': ' + message);
+            }
+
+            $.ajax({
+                type: 'POST',
+                crossDomain: true,
+                xhrFields: {
+                    withCredentials: true
+                },
+                dataType: 'json',
+                contentType: 'application/json',
+                url: loggingService,
+                data: JSON.stringify({
+                    Application: CIB.logging.applicationName,
+                    Category: category,
+                    Message: message,
+                    StackTrace: stacktrace ? stacktrace : window.location.href
+                })
+            })
+            .fail(CIB.logging.logErrorFailed);
+        },
+
+        logEvent: function (application, eventType, xmlData) {
+
+            $.support.cors = true;
+
+            if (!CIB.logging.applicationName) {
+                if (typeof _spPageContextInfo !== 'undefined' && _spPageContextInfo && _spPageContextInfo.webTitle) {
+                    CIB.logging.applicationName = _spPageContextInfo.webTitle;
+                }
+                else {
+                    CIB.logging.applicationName = $.getServerRealtiveHostWebUrl();
+                }
+            }
+
+            if (console) {
+                console.log('Logging error for: ' + CIB.logging.applicationName);
+                console.log('Event type: ' + ': ' + eventType);
+                console.log('XML data: ' + ': ' + xmlData);
+            }
+
+            $.ajax({
+                type: 'POST',
+                crossDomain: true,
+                xhrFields: {
+                    withCredentials: true
+                },
+                dataType: 'json',
+                contentType: 'application/json',
+                url: analyticsService,
+                data: JSON.stringify({
+                    Application: application,
+                    EventType: eventType,
+                    XmlData: xmlData
+                })
+            })
+            .fail(CIB.logging.logErrorFailed);
+        },
+
+        logEventAsyncPromise: function (application, eventType, xmlData) {
+
+            var logEventAction = new jQuery.Deferred();
+
+            $.support.cors = true;
+
+            if (!CIB.logging.applicationName) {
+                if (typeof _spPageContextInfo !== 'undefined' && _spPageContextInfo && _spPageContextInfo.webTitle) {
+                    CIB.logging.applicationName = _spPageContextInfo.webTitle;
+                }
+                else {
+                    CIB.logging.applicationName = $.getServerRealtiveHostWebUrl();
+                }
+            }
+
+            if (console) {
+                console.log('Logging error for: ' + CIB.logging.applicationName);
+                console.log('Event type: ' + ': ' + eventType);
+                console.log('XML data: ' + ': ' + xmlData);
+            }
+
+            $.ajax({
+                type: 'POST',
+                crossDomain: true,
+                xhrFields: {
+                    withCredentials: true
+                },
+                dataType: 'json',
+                contentType: 'application/json',
+                url: analyticsService,
+                data: JSON.stringify({
+                    Application: application,
+                    EventType: eventType,
+                    XmlData: xmlData
+                })
+            })
+            .done(function (content) {
+                logEventAction.resolve(content);
+            })
+            .fail(function (sender, status) {
+                CIB.logging.logErrorFailed(sender, status);
+                logEventAction.reject(sender.statusText);
+            });
+
+            return logEventAction.promise();
+        },
+
+        logErrorFailed: function (sender, args) {
+            if (console) {
+                console.log('Failed to send error to logging service: ' + sender.statusText);
+            }
+        }
+    };
+}();
